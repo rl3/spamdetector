@@ -2,7 +2,7 @@
 from sklearn.model_selection import train_test_split  # type: ignore
 import os
 from constants import HAM_DIR, SPAM_DIR, TRAIN_CHUNK_SIZE
-from model_tools import get_model, save_model, get_transformer, save_transformer
+from model_tools import _save_model, get_vectorizer_model, _save_vectorizer
 from tools import read_mail, valid_file_name
 from random import shuffle
 
@@ -35,8 +35,7 @@ label_names_test: list[str] = []
 
 shuffle(label_files)
 
-transormer = get_transformer()
-model = get_model(train=True)
+vectorizer, model = get_vectorizer_model(train=True)
 
 
 def train(round: int):
@@ -53,7 +52,7 @@ def train(round: int):
             labels.append(label)
 
     print(f"Transforming train data (round {round + 1})")
-    features = transormer.fit_transform(bodies)
+    features = vectorizer.fit_transform(bodies)
 
     print(f"Learning (round {round + 1})")
     model.fit(features, labels)
@@ -64,5 +63,5 @@ while round * TRAIN_CHUNK_SIZE < len(label_files):
     train(round)
     round += 1
 
-save_model(model)
-save_transformer(transormer)
+_save_model(model)
+_save_vectorizer(vectorizer)

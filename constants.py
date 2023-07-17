@@ -12,7 +12,7 @@ VOCABULARY_FILE_PREFIX = "vocabulary"
 VOCABULARY_FILE_EXT = ".pkl"
 
 TEXT_TRANSFORMER: Literal['CountVectorizer',
-                          'TfidfTransformer', 'TfidfVectorizer'] = 'CountVectorizer'
+                          'TfidfTransformer', 'TfidfVectorizer'] = 'TfidfVectorizer'
 TEXT_MODEL: Literal['SVC', 'MultinomialNB'] = 'SVC'
 
 MAX_SIZE = 50_000
