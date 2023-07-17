@@ -1,8 +1,8 @@
 
 from sklearn.model_selection import train_test_split  # type: ignore
 import os
-from constants import HAM_DIR, SPAM_DIR, TRAIN_CHUNK_SIZE
-from model_tools import _save_model, get_vectorizer_model, _save_vectorizer
+from constants import HAM_DIR, SPAM_DIR, TRAIN_CHUNK_SIZE, TEXT_VECTORIZER, TEXT_MODEL
+from model_tools import get_vectorizer_model, save_vectorizer_model
 from tools import read_mail, valid_file_name
 from random import shuffle
 
@@ -35,7 +35,8 @@ label_names_test: list[str] = []
 
 shuffle(label_files)
 
-vectorizer, model = get_vectorizer_model(train=True)
+vectorizer, model = get_vectorizer_model(
+    model_type=TEXT_MODEL, vectorizer_type=TEXT_VECTORIZER, train=True)
 
 
 def train(round: int):
@@ -63,5 +64,4 @@ while round * TRAIN_CHUNK_SIZE < len(label_files):
     train(round)
     round += 1
 
-_save_model(model)
-_save_vectorizer(vectorizer)
+save_vectorizer_model(vectorizer=vectorizer, model=model)

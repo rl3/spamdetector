@@ -1,4 +1,7 @@
-from typing import Literal
+from typing import TypeVar, Type
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer  # type: ignore
+from sklearn.naive_bayes import MultinomialNB  # type: ignore
+from sklearn.svm import SVC  # type: ignore
 
 SPAM_DIR = "spam"
 HAM_DIR = "ham"
@@ -8,12 +11,14 @@ MODEL_FILE_EXT = ".pkl"
 
 NEW_MODEL: bool = False
 
-VOCABULARY_FILE_PREFIX = "vocabulary"
-VOCABULARY_FILE_EXT = ".pkl"
+VECTORIZER_FILE_PREFIX = "vocabulary"
+VECTORIZER_FILE_EXT = ".pkl"
 
-TEXT_TRANSFORMER: Literal['CountVectorizer',
-                          'TfidfTransformer', 'TfidfVectorizer'] = 'TfidfVectorizer'
-TEXT_MODEL: Literal['SVC', 'MultinomialNB'] = 'SVC'
+TextVectorizerTypes = TypeVar(
+    "TextVectorizerTypes", CountVectorizer, TfidfVectorizer)
+TEXT_VECTORIZER = TfidfVectorizer
+ModelTypes = TypeVar("ModelTypes", SVC, MultinomialNB)
+TEXT_MODEL = SVC
 
 MAX_SIZE = 50_000
 TRAIN_CHUNK_SIZE = 1_000
