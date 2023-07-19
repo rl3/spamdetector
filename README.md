@@ -1,7 +1,7 @@
 # spamdetector
 Trying to build an AI based spam detector
 
-This is a test to build an AI based spam detector and currently in progress.
+This is a test to build an AI based spam detector, currently work progress and by no means suitable for any production use.
 
 **Most features described below are corrently not even remotely implemented nor thought through.**
 
