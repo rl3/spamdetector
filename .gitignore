@@ -3,3 +3,4 @@ mails/*
 spam/*
 __pycache__/*
 *.pkl
+.env/*

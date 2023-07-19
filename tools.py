@@ -1,11 +1,13 @@
 
-import chardet
-from constants import MAX_SIZE
 import os
 import re
-from email.parser import BytesParser
-from email import policy, message_from_bytes
+from email import policy
 from email.message import EmailMessage, Message
+from email.parser import BytesParser
+
+import chardet
+
+from constants import MAX_SIZE
 
 
 def detect_encoding(file_path):
