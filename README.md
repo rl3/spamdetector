@@ -3,7 +3,7 @@ An AI based spam detector
 
 This is a test to build an AI based spam detector. **This is currently work progress and by no means suitable for any production use.**
 
-**Most features described below are corrently not even remotely implemented nor thought through.**
+**Most features described below are currently not even remotely implemented nor thought through.**
 
 ## Planned Features
 - Command line program to be run on a regular basis (daily?) on messages known as SPAM (i.e. spam or junk folder) and
