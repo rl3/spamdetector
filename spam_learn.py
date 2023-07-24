@@ -1,67 +1,113 @@
 
-from sklearn.model_selection import train_test_split  # type: ignore
 import os
-from constants import HAM_DIR, SPAM_DIR, TRAIN_CHUNK_SIZE, TEXT_VECTORIZER, TEXT_MODEL
-from model_tools import get_vectorizer_model, save_vectorizer_model
-from tools import read_mail, valid_file_name
-from random import shuffle
-
+import re
 from glob import glob
+from itertools import chain
+from random import shuffle
+from typing import Callable, Tuple
 
+from constants import (MAIL_DIR, RE_SPAM_PATH, TEXT_MODEL, TEXT_VECTORIZER,
+                       TRAIN_CHUNK_SIZE)
+from model_tools import (extend_vocabulary, get_vectorizer,
+                         get_vocabulary_model, save_vocabulary_model)
+from tools import read_mail, valid_file_name
 
 label_files: list[tuple[str, str]] = []
 
 
-def add_files(dir: str, label: str):
-    for file_name in glob(f"{dir}/*"):
-        if os.path.isdir(file_name):
-            add_files(file_name, label)
+def __scope1() -> Callable[[str], str]:
+    _re_spam_path: Tuple[tuple[str, re.RegexFlag], ...] = tuple(
+        re_spam
+        if isinstance(re_spam, tuple)
+        else (re_spam, re.IGNORECASE)
+        for re_spam in RE_SPAM_PATH
+    )
+
+    def __get_label(path: str) -> str:
+        for regexp, flags in _re_spam_path:
+            if re.search(regexp, path, flags=flags):
+                return "spam"
+        return "ham"
+
+    return __get_label
+
+
+_get_label = __scope1()
+
+
+def add_files(path: str):
+    label: str = _get_label(path)
+
+    for file_path in glob(f"{path}/*"):
+        if os.path.isdir(file_path):
+            add_files(file_path)
             continue
 
-        if valid_file_name(file_name):
-            label_files.append((label, file_name))
+        if valid_file_name(file_path):
+            label_files.append((label, file_path))
         else:
-            print(f"Skipping {label} file", file_name)
+            print(f"Skipping {label} file", file_path)
 
 
-print("Loading SPAM")
-add_files(SPAM_DIR, label='spam')
+def train(path: str):
+    print(f"Loading mails from '{path}'")
+    add_files(path)
 
-print("Lodaing HAM")
-add_files(HAM_DIR, label='ham')
+    print(f"Training {len(label_files)} mails...")
 
-file_names_test: list[str] = []
-label_names_test: list[str] = []
+    shuffle(label_files)
 
-shuffle(label_files)
+    vocabulary, model = get_vocabulary_model(
+        model_type=TEXT_MODEL, vectorizer_type=TEXT_VECTORIZER, train=True)
 
-vectorizer, model = get_vectorizer_model(
-    model_type=TEXT_MODEL, vectorizer_type=TEXT_VECTORIZER, train=True)
+    vectorizer = get_vectorizer(TEXT_VECTORIZER, vocabulary)
+
+    def _train(round_no: int):
+        start = round_no * TRAIN_CHUNK_SIZE
+        end = start + TRAIN_CHUNK_SIZE
+
+        froms: list[str] = []
+        subjects: list[str] = []
+        bodies: list[str] = []
+        labels: list[str] = []
+        print(f"Reading files (round {round_no + 1})")
+        for label, file_name in label_files[start:end]:
+            mail_content = read_mail(file_name)
+            if mail_content is not None:
+                _from, subject, body = mail_content
+                froms.append(_from)
+                subjects.append(subject)
+                bodies.append(body or '')
+                labels.append(label)
+
+        print(f"Extending dictionary (round {round_no + 1})")
+        extend_vocabulary(
+            documents=chain.from_iterable((froms, subjects, bodies)),
+            vocabulary=vocabulary,
+            vectorizer=vectorizer
+        )
+
+        print(f"Transforming train data (round {round_no + 1})")
+        features = (
+            vectorizer.fit_transform(froms)  # type: ignore
+            + vectorizer.fit_transform(subjects)  # type: ignore
+            + vectorizer.fit_transform(bodies)  # type: ignore
+        )
+
+        print(f"Learning (round {round_no + 1})")
+        model.fit(features, labels)  # type:ignore
+
+    round_no = 0
+    while round_no * TRAIN_CHUNK_SIZE < len(label_files):
+        _train(round_no)
+        round_no += 1
+
+    save_vocabulary_model(
+        vocabulary=vocabulary,
+        vectorizer_type=type(vectorizer),
+        model=model
+    )
 
 
-def train(round: int):
-    start = round * TRAIN_CHUNK_SIZE
-    end = start + TRAIN_CHUNK_SIZE
-
-    bodies: list[str] = []
-    labels: list[str] = []
-    print(f"Reading files (round {round + 1})")
-    for label, file_name in label_files[start:end]:
-        body = read_mail(file_name)
-        if body is not None:
-            bodies.append(body)
-            labels.append(label)
-
-    print(f"Transforming train data (round {round + 1})")
-    features = vectorizer.fit_transform(bodies)
-
-    print(f"Learning (round {round + 1})")
-    model.fit(features, labels)
-
-
-round = 0
-while round * TRAIN_CHUNK_SIZE < len(label_files):
-    train(round)
-    round += 1
-
-save_vectorizer_model(vectorizer=vectorizer, model=model)
+if __name__ == '__main__':
+    train(MAIL_DIR)

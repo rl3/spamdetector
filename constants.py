@@ -1,17 +1,22 @@
-from typing import TypeVar, Type
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer  # type: ignore
+import re
+from typing import TypeVar
+
+from sklearn.feature_extraction.text import CountVectorizer  # type: ignore
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB  # type: ignore
 from sklearn.svm import SVC  # type: ignore
 
-SPAM_DIR = "spam"
-HAM_DIR = "ham"
+MAIL_DIR = "mails"
+RE_SPAM_PATH: list[tuple[str, re.RegexFlag] | str] = [
+    (r'\bspam\b', re.IGNORECASE),
+]
 
 MODEL_FILE_PREFIX = "model"
 MODEL_FILE_EXT = ".pkl"
 
 NEW_MODEL: bool = False
 
-VECTORIZER_FILE_PREFIX = "vocabulary"
+VOCABULARY_FILE_PREFIX = "vocabulary"
 VECTORIZER_FILE_EXT = ".pkl"
 
 TextVectorizerTypes = TypeVar(

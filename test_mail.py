@@ -1,24 +1,38 @@
-from model_tools import get_vectorizer_model
 from sys import argv
-from tools import read_mail, read_email
+
+from numpy import vectorize
+
 from constants import TEXT_MODEL, TEXT_VECTORIZER
+from model_tools import get_vectorizer, get_vocabulary_model
+from tools import read_mail
 
 
 def predict_mail(*_file_names: str):
 
     file_names: list[str] = []
-    contents: list[str] = []
+    froms: list[str] = []
+    subjects: list[str] = []
+    bodies: list[str] = []
 
     for file_name in _file_names:
         content = read_mail(file_name)
         if content is not None:
+            _from, subject, body = content
+
             file_names.append(file_name)
-            contents.append(content)
+            froms.append(_from)
+            subjects.append(subject)
+            bodies.append(body or '')
 
-    vectorizer, model = get_vectorizer_model(
+    vocabulary, model = get_vocabulary_model(
         model_type=TEXT_MODEL, vectorizer_type=TEXT_VECTORIZER)
+    vectorizer = get_vectorizer(TEXT_VECTORIZER, vocabulary)
 
-    features_predict = vectorizer.transform(contents)
+    features_predict = (
+        vectorizer.fit_transform(froms)
+        + vectorizer.fit_transform(subjects)
+        + vectorizer.fit_transform(bodies)
+    )
     # prediction_values = model.predict_proba(features_predict)
     predictions = model.predict(features_predict)
     prediction_values = predictions
