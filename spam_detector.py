@@ -106,12 +106,12 @@ class SpamDetector:
         try:
             if os.path.isfile(file_name) and os.access(file_name, os.R_OK):
                 with open(file_name, 'rb') as file_handle:
-                    print(f"Loading vectorizer from file '{file_name}'")
+                    print(f"Loading vocabulary from file '{file_name}'")
                     vocabulary = pickle.load(file_handle)
                     return vocabulary
 
         except:  # pylint: disable=bare-except
-            print(f"Loading vectorizer from file '{file_name}' failed")
+            print(f"Loading vocabulary from file '{file_name}' failed")
         return {}
 
     def save_vocabulary_model(self):
