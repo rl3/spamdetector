@@ -1,16 +1,12 @@
 
 import os
 import re
-from glob import glob
-from itertools import chain
 from random import shuffle
 from typing import Callable, Tuple
 
-from constants import (MAIL_DIR, RE_SPAM_PATH, TEXT_MODEL, TEXT_VECTORIZER,
-                       TRAIN_CHUNK_SIZE)
-from model_tools import (extend_vocabulary, get_vectorizer,
-                         get_vocabulary_model, save_vocabulary_model)
-from tools import read_mail, valid_file_name
+from constants import MAIL_DIR, RE_SPAM_PATH, TRAIN_CHUNK_SIZE, MailContent
+from spam_detector import SpamDetector
+from tools import read_mail_from_file, valid_file_name
 
 label_files: list[tuple[str, str]] = []
 
@@ -38,7 +34,8 @@ _get_label = __scope1()
 def add_files(path: str):
     label: str = _get_label(path)
 
-    for file_path in glob(f"{path}/*"):
+    for _file_path in os.listdir(path):
+        file_path = os.path.join(path, _file_path)
         if os.path.isdir(file_path):
             add_files(file_path)
             continue
@@ -57,56 +54,30 @@ def train(path: str):
 
     shuffle(label_files)
 
-    vocabulary, model = get_vocabulary_model(
-        model_type=TEXT_MODEL, vectorizer_type=TEXT_VECTORIZER, train=True)
-
-    vectorizer = get_vectorizer(TEXT_VECTORIZER, vocabulary)
+    spam_detector: SpamDetector = SpamDetector(train=True)
 
     def _train(round_no: int):
         start = round_no * TRAIN_CHUNK_SIZE
         end = start + TRAIN_CHUNK_SIZE
 
-        froms: list[str] = []
-        subjects: list[str] = []
-        bodies: list[str] = []
+        mail_contents: list[MailContent] = []
         labels: list[str] = []
+
         print(f"Reading files (round {round_no + 1})")
         for label, file_name in label_files[start:end]:
-            mail_content = read_mail(file_name)
+            mail_content = read_mail_from_file(file_name)
             if mail_content is not None:
-                _from, subject, body = mail_content
-                froms.append(_from)
-                subjects.append(subject)
-                bodies.append(body or '')
+                mail_contents.append(mail_content)
                 labels.append(label)
 
-        print(f"Extending dictionary (round {round_no + 1})")
-        extend_vocabulary(
-            documents=chain.from_iterable((froms, subjects, bodies)),
-            vocabulary=vocabulary,
-            vectorizer=vectorizer
-        )
-
-        print(f"Transforming train data (round {round_no + 1})")
-        features = (
-            vectorizer.fit_transform(froms)  # type: ignore
-            + vectorizer.fit_transform(subjects)  # type: ignore
-            + vectorizer.fit_transform(bodies)  # type: ignore
-        )
-
-        print(f"Learning (round {round_no + 1})")
-        model.fit(features, labels)  # type:ignore
+        spam_detector.learn_mail(contents=mail_contents, labels=labels)
 
     round_no = 0
     while round_no * TRAIN_CHUNK_SIZE < len(label_files):
         _train(round_no)
         round_no += 1
 
-    save_vocabulary_model(
-        vocabulary=vocabulary,
-        vectorizer_type=type(vectorizer),
-        model=model
-    )
+    spam_detector.save_vocabulary_model()
 
 
 if __name__ == '__main__':

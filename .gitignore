@@ -4,3 +4,6 @@ spam/*
 __pycache__/*
 *.pkl
 .env/*
+enron*/*
+*.gz
+*.tgz

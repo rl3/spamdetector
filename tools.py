@@ -8,7 +8,7 @@ from email.parser import BytesParser
 import chardet
 from html2text import html2text
 
-from constants import MAX_SIZE
+from constants import MAX_SIZE, MailContent
 
 
 def detect_encoding(file_path: str):
@@ -20,7 +20,7 @@ def detect_encoding(file_path: str):
 
 def valid_file_name(file_name: str) -> bool:
     base_name = os.path.basename(file_name)
-    return True if re.fullmatch(r'\d+\.', base_name) or re.search(r'\.eml$', base_name) else False
+    return True if re.fullmatch(r'\d+\.', base_name) or re.search(r'\.eml$', base_name) or base_name.endswith('.txt') else False
 
 
 def convert_message(message: EmailMessage | Message) -> EmailMessage:
@@ -34,49 +34,60 @@ def convert_message(message: EmailMessage | Message) -> EmailMessage:
     return email_message
 
 
-def read_mail(file_name: str) -> tuple[str, str, str] | None:
+def read_mail_from_file(file_name: str) -> MailContent | None:
     if valid_file_name(file_name):
         parser = BytesParser(policy=policy.default)
         with open(file_name, 'rb') as fh:
             message = convert_message(parser.parse(fh))
 
-            email_from = message.get_unixfrom() or message['From'] or ''
-            if match := re.search(r'[\w\.-]+@[\w\.-]+(?:\.[\w]+)+', email_from):
-                email_from = match[0]
-
-            email_subject = message['Subject'] or ''
-
-            def _get_body(message: EmailMessage):
-                if message.is_multipart():
-                    email_body_message = message.get_body(
-                        preferencelist=("html", "plain")
-                    )
-                    if email_body_message is None:
-                        return None
-
-                    message = convert_message(email_body_message)
-
-                try:
-                    email_body = message.get_content()
-                    email_body = None if email_body is None else str(
-                        email_body)
-                except:  # pylint: disable=bare-except
-                    print(file_name)
-                    print(message.get_content_type())
-                    print(message.get_charsets())
-                    return None
-
-                if email_body is not None and message.get_content_type() == 'text/html':
-                    return html2text(email_body)
-                return email_body
-
-            email_body = _get_body(message) or ''
-
-            return (f"FROM: {email_from}", f"SUBJECT: {email_subject}", email_body)
-
+        return _read_mail(message)
     return None
 
 
+def read_mail_from_str(mail_body: str) -> MailContent:
+    parser = BytesParser(policy=policy.default)
+    message = convert_message(parser.parsebytes(mail_body.encode('utf-8')))
+
+    return _read_mail(message)
+
+
+def _read_mail(message: EmailMessage) -> MailContent:
+
+    email_from = str(message.get_unixfrom() or message['From'] or '')
+    if match := re.search(r'[\w\.-]+@[\w\.-]+(?:\.[\w]+)+', email_from):
+        email_from = match[0]
+
+    email_subject = str(message['Subject'] or '')
+    email_subject = re.sub(r'\*+SPAM\*+\s*', '', email_subject)
+
+    def _get_body(message: EmailMessage):
+        if message.is_multipart():
+            email_body_message = message.get_body(
+                preferencelist=("html", "plain")
+            )
+            if email_body_message is None:
+                return None
+
+            message = convert_message(email_body_message)
+
+        try:
+            email_body = message.get_content()
+            email_body = None if email_body is None else str(
+                email_body)
+        except:  # pylint: disable=bare-except
+            print(message.get_content_type())
+            print(message.get_charsets())
+            return None
+
+        if email_body is not None and message.get_content_type() == 'text/html':
+            return html2text(email_body)
+        return email_body
+
+    email_body = _get_body(message) or ''
+
+    return (f"FROM: {email_from}", f"SUBJECT: {email_subject}", email_body)
+
+
 if __name__ == '__main__':
-    mail = read_mail('mails/stephan/Spam/636.')
+    mail = read_mail_from_file('mails/stephan/Spam/636.')
     print(mail)

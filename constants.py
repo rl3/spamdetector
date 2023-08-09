@@ -1,5 +1,6 @@
 import re
-from typing import TypeVar
+import socket
+from typing import Tuple, Type, Union
 
 from sklearn.feature_extraction.text import CountVectorizer  # type: ignore
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -19,13 +20,28 @@ NEW_MODEL: bool = False
 VOCABULARY_FILE_PREFIX = "vocabulary"
 VECTORIZER_FILE_EXT = ".pkl"
 
-TextVectorizerTypes = TypeVar(
-    "TextVectorizerTypes", CountVectorizer, TfidfVectorizer)
-TEXT_VECTORIZER = TfidfVectorizer
-ModelTypes = TypeVar("ModelTypes", SVC, MultinomialNB)
-TEXT_MODEL = SVC
+TextVectorizerType = Union[
+    CountVectorizer,
+    TfidfVectorizer,
+]
+TEXT_VECTORIZER_TYPE: Type[TextVectorizerType] = CountVectorizer
+N_GRAMS: tuple[int, int] = (1, 2)
+TextModelType = Union[
+    SVC,
+    MultinomialNB,
+]
+TEXT_MODEL_TYPE: Type[TextModelType] = MultinomialNB
 
 MAX_SIZE = 50_000
 TRAIN_CHUNK_SIZE = 1_000
 
-LIMIT_FILES: int | None = None  # 1000
+SOCKET_TYPE = 'INET'
+
+SOCKET_INET: tuple[int, str | tuple[str, int]] = (
+    socket.AF_INET, ('localhost', 10028)
+)
+SOCKET_UNIX: tuple[int, str | tuple[str, int]] = (
+    socket.AF_UNIX, './spam.sock'
+)
+SOCKET_DATA = SOCKET_UNIX
+MailContent = Tuple[str, ...]
