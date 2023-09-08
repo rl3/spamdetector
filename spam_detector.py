@@ -28,7 +28,7 @@ STOPWORDS: list[str] = [
 class SpamDetector:
     def __init__(self, train: bool = False) -> None:
         self.train: bool = train
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self.reload()
 
     def reload(self):

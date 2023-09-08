@@ -7,9 +7,14 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB  # type: ignore
 from sklearn.svm import SVC  # type: ignore
 
+# TODO: Should be configurable
 MAIL_DIR = "mails"
 RE_SPAM_PATH: list[tuple[str, re.RegexFlag] | str] = [
     (r'\bspam\b', re.IGNORECASE),
+]
+RE_TRASH_PATH: list[tuple[str, re.RegexFlag] | str] = [
+    (r'\btrash\b', re.IGNORECASE),
+    (r'\bdeleted\b', re.IGNORECASE),
 ]
 
 MODEL_FILE_PREFIX = "model"
@@ -24,7 +29,7 @@ TextVectorizerType = Union[
     CountVectorizer,
     TfidfVectorizer,
 ]
-TEXT_VECTORIZER_TYPE: Type[TextVectorizerType] = CountVectorizer
+TEXT_VECTORIZER_TYPE: Type[TextVectorizerType] = TfidfVectorizer
 N_GRAMS: tuple[int, int] = (1, 2)
 TextModelType = Union[
     SVC,
@@ -43,5 +48,5 @@ SOCKET_INET: tuple[int, str | tuple[str, int]] = (
 SOCKET_UNIX: tuple[int, str | tuple[str, int]] = (
     socket.AF_UNIX, './spam.sock'
 )
-SOCKET_DATA = SOCKET_UNIX
+SOCKET_DATA: tuple[int, str | tuple[str, int]] = SOCKET_UNIX
 MailContent = Tuple[str, ...]

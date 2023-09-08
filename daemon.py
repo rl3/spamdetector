@@ -10,6 +10,28 @@ from tools import read_mail_from_str
 
 MAIL_TEST = SpamDetector()
 
+'''
+What should a postfix mail filter output and return when called?
+ANSWER | GPT-3.5 MODEL
+When a postfix mail filter is called, it should output a modified version of the original email message and return an
+exit status code to indicate the result of the filtering process. The output and return values depend on the specific
+requirements and logic of the filter. Here are some common scenarios:
+
+- Accept the email: If the filter determines that the email should be accepted and delivered, it should output the
+  original email message without any modifications and return an exit status code of 0.
+- Reject the email: If the filter determines that the email should be rejected and not delivered, it should output
+  an error message indicating the reason for rejection and return a non-zero exit status code. The specific error
+  message and exit status code can vary depending on the reason for rejection.
+- Modify the email: If the filter needs to modify the email before delivering it, it should output the modified version
+  of the email message and return an exit status code of 0. The modifications can include adding or removing headers,
+  changing the message body, or altering any other part of the email.
+
+It's important to note that the exact implementation of the postfix mail filter and the specific output and return values
+may vary depending on the programming language and framework being used. The above scenarios provide a general guideline,
+but you should refer to the documentation or examples specific to your chosen implementation to ensure proper integration
+with postfix.
+'''
+
 
 def handle_sighup(_signum: int, _frame: FrameType | None):
     print("Reloading model...")
@@ -51,20 +73,22 @@ def start_filter():
     while True:
         connection, _address = server_socket.accept()
         client_thread = threading.Thread(
-            target=handle_mail, args=(connection,))
+            target=handle_mail, args=(connection,)
+        )
         client_thread.start()
         # handle_mail(connection)
 
 
 if __name__ == '__main__':
 
-    # pylint: disable=unidiomatic-typecheck
-    if SOCKET_DATA[0] == socket.AF_UNIX and type(SOCKET_DATA[1]) == str and os.path.isfile(SOCKET_DATA[1]):
-        print(f"Socket {SOCKET_DATA[1]} already exists. Exiting.")
+    address_family, address = SOCKET_DATA
+
+    if address_family == socket.AF_UNIX and isinstance(address, str) and os.path.isfile(address):
+        print(f"Socket {address} already exists. Exiting.")
         exit(1)
 
     try:
         start_filter()
     finally:
-        if SOCKET_DATA[0] == socket.AF_UNIX and type(SOCKET_DATA[1]) == str:
-            os.unlink(SOCKET_DATA[1])
+        if address_family == socket.AF_UNIX and isinstance(address, str):
+            os.unlink(address)

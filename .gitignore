@@ -3,7 +3,7 @@ mails/*
 spam/*
 __pycache__/*
 *.pkl
-.env/*
+.venv/*
 enron*/*
 *.gz
 *.tgz
