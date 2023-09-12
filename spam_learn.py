@@ -7,21 +7,13 @@ from typing import Callable
 from constants import (MAIL_DIR, RE_SPAM_PATH, RE_TRASH_PATH, TRAIN_CHUNK_SIZE,
                        MailContent)
 from spam_detector import SpamDetector
-from tools import read_mail_from_file, valid_file_name
+from tools import fix_re_tuples, read_mail_from_file, valid_file_name
 
 label_files: list[tuple[str, str]] = []
 
 
 def __scope1() -> tuple[Callable[[str], str], Callable[[str], bool]]:
-    def _fix_re(res: list[tuple[str, re.RegexFlag] | str]):
-        return tuple(
-            re_
-            if isinstance(re_, tuple)
-            else (re_, re.IGNORECASE)
-            for re_ in res
-        )
-
-    _re_spam_path = _fix_re(RE_SPAM_PATH)
+    _re_spam_path = fix_re_tuples(RE_SPAM_PATH)
 
     def __get_label(path: str) -> str:
         for regexp, flags in _re_spam_path:
@@ -29,7 +21,7 @@ def __scope1() -> tuple[Callable[[str], str], Callable[[str], bool]]:
                 return "spam"
         return "ham"
 
-    _re_trash_path = _fix_re(RE_TRASH_PATH)
+    _re_trash_path = fix_re_tuples(RE_TRASH_PATH)
 
     def __is_trash(path: str) -> bool:
         for regexp, flags in _re_trash_path:

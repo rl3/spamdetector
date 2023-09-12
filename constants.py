@@ -16,6 +16,12 @@ RE_TRASH_PATH: list[tuple[str, re.RegexFlag] | str] = [
     (r'\btrash\b', re.IGNORECASE),
     (r'\bdeleted\b', re.IGNORECASE),
 ]
+RE_SPAM_SUBJECT_PREFIX: list[tuple[str, re.RegexFlag] | str] = [
+    (r'\*+\s*SPAM\s*\*+\s*', re.IGNORECASE),
+    (r'\*+\s*AI\-SPAM\s*\*+\s*', re.IGNORECASE),
+]
+SUBJECT_PREFIX: str | None = "*** AI-SPAM ***"
+
 
 MODEL_FILE_PREFIX = "model"
 MODEL_FILE_EXT = ".pkl"

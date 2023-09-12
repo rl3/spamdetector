@@ -1,10 +1,11 @@
 import os
+import re
 import signal
 import socket
 import threading
 from types import FrameType
 
-from constants import SOCKET_DATA
+from constants import SOCKET_DATA, SUBJECT_PREFIX
 from spam_detector import SpamDetector
 from tools import read_mail_from_str
 
@@ -56,9 +57,20 @@ def handle_mail(connection: socket.socket):
     print("Finished", result)
 
     add_header = f'RL3-AI-Spam-Filter: {result}\r\n'
+    new_mail_body = (
+        re.sub(
+            pattern=r'^Subject:\s+',
+            repl=f'Subject: {SUBJECT_PREFIX} ',
+            string=mail_body,
+            flags=re.MULTILINE | re.IGNORECASE,
+            count=1
+        )
+        if prediction and SUBJECT_PREFIX
+        else mail_body
+    )
 
     # Send the modified mail back to Postfix
-    connection.sendall((add_header + mail_body).encode('utf-8'))
+    connection.sendall((add_header + new_mail_body).encode('utf-8'))
     connection.close()
 
 
