@@ -4,25 +4,41 @@ import os
 import pickle
 import threading
 from itertools import chain
-from typing import Iterable
+from typing import Callable, Iterable
 
 import sklearn.feature_extraction.text  # type:ignore
 from nltk import download  # type:ignore
 from nltk.corpus import stopwords  # type:ignore
 
+from config import STOP_WORD_LANGUANGES
 from constants import (MODEL_FILE_EXT, MODEL_FILE_PREFIX, N_GRAMS,
                        TEXT_MODEL_TYPE, TEXT_VECTORIZER_TYPE,
                        VECTORIZER_FILE_EXT, VOCABULARY_FILE_PREFIX,
                        MailContent, TextModelType, TextVectorizerType)
 
 STRIP_ACCENTS = sklearn.feature_extraction.text.strip_accents_unicode
-download('stopwords')
-STOPWORDS: list[str] = [
-    STRIP_ACCENTS(word)
-    for word in stopwords.words(['german', 'english'])  # type:ignore
-]
-# print(STOPWORDS)
-# exit()
+
+
+def ___closure1() -> Callable[[], list[str]]:
+
+    _stop_words: list[str] | None = None
+
+    def _get_stop_words():
+        nonlocal _stop_words
+        if _stop_words is not None:
+            return _stop_words
+
+        download('stopwords')
+        _stop_words = [
+            STRIP_ACCENTS(word)
+            for word in stopwords.words(STOP_WORD_LANGUANGES)  # type:ignore
+        ]
+        return _stop_words
+
+    return _get_stop_words
+
+
+get_stop_words = ___closure1()
 
 
 class SpamDetector:
@@ -40,7 +56,7 @@ class SpamDetector:
                 strip_accents=STRIP_ACCENTS,
                 decode_error='ignore',
                 vocabulary=self.vocabulary,
-                stop_words=STOPWORDS,
+                stop_words=get_stop_words(),
             )
 
     def _get_model_vectorizer(self) -> tuple[TextModelType, TextVectorizerType]:

@@ -8,7 +8,8 @@ from email.parser import BytesParser
 import chardet
 from html2text import html2text
 
-from constants import MAX_SIZE, RE_SPAM_SUBJECT_PREFIX, MailContent
+from config import RE_SPAM_SUBJECT_PREFIX
+from constants import MAX_SIZE, MailContent
 
 
 def fix_re_tuples(res: list[tuple[str, re.RegexFlag] | str]):
@@ -18,6 +19,7 @@ def fix_re_tuples(res: list[tuple[str, re.RegexFlag] | str]):
         else (re_, re.IGNORECASE)
         for re_ in res
     )
+
 
 def detect_encoding(file_path: str):
     with open(file_path, 'rb') as file:
@@ -67,7 +69,8 @@ def _read_mail(message: EmailMessage) -> MailContent:
 
     email_subject = str(message['Subject'] or '')
     for re_tuple in fix_re_tuples(RE_SPAM_SUBJECT_PREFIX):
-        email_subject = re.sub(re_tuple[0], repl='', string=email_subject, flags=re_tuple[1])
+        email_subject = re.sub(
+            re_tuple[0], repl='', string=email_subject, flags=re_tuple[1])
 
     def _get_body(message: EmailMessage):
         if message.is_multipart():

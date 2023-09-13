@@ -1,11 +1,12 @@
 
 import os
 import re
+import sys
 from random import shuffle
 from typing import Callable
 
-from constants import (MAIL_DIR, RE_SPAM_PATH, RE_TRASH_PATH, TRAIN_CHUNK_SIZE,
-                       MailContent)
+from config import MAIL_DIRS, RE_SPAM_PATH, RE_TRASH_PATH
+from constants import TRAIN_CHUNK_SIZE, MailContent
 from spam_detector import SpamDetector
 from tools import fix_re_tuples, read_mail_from_file, valid_file_name
 
@@ -53,15 +54,13 @@ def add_files(path: str):
             print(f"Skipping {label} file", file_path)
 
 
-def train(path: str):
+def train(path: str, spam_detector: SpamDetector):
     print(f"Loading mails from '{path}'")
     add_files(path)
 
     print(f"Training {len(label_files)} mails...")
 
     shuffle(label_files)
-
-    spam_detector: SpamDetector = SpamDetector(train=True)
 
     def _train(round_no: int):
         start = round_no * TRAIN_CHUNK_SIZE
@@ -84,8 +83,16 @@ def train(path: str):
         _train(round_no)
         round_no += 1
 
+
+def train_all(*pathes: str):
+    spam_detector: SpamDetector = SpamDetector(train=True)
+    for path in pathes:
+        train(path, spam_detector)
     spam_detector.save_vocabulary_model()
 
 
 if __name__ == '__main__':
-    train(MAIL_DIR)
+    dirs: list[str] = MAIL_DIRS
+    if len(sys.argv) > 1:
+        dirs = [dir for dir in sys.argv[1:] if os.path.isdir(dir)]
+    train_all(*dirs)

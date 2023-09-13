@@ -5,11 +5,29 @@ import socket
 import threading
 from types import FrameType
 
-from constants import SOCKET_DATA, SUBJECT_PREFIX
+from config import SOCKET_DATA, SUBJECT_PREFIX
 from spam_detector import SpamDetector
 from tools import read_mail_from_str
 
-MAIL_TEST = SpamDetector()
+
+def __closure1():
+    spam_detector: SpamDetector | None = None
+
+    lock = threading.RLock()
+
+    def _get_spam_detector():
+        nonlocal spam_detector
+        with lock:
+            if spam_detector is not None:
+                return spam_detector
+
+            spam_detector = SpamDetector()
+            return spam_detector
+
+    return _get_spam_detector
+
+
+get_spam_detector = __closure1()
 
 '''
 What should a postfix mail filter output and return when called?
@@ -36,25 +54,17 @@ with postfix.
 
 def handle_sighup(_signum: int, _frame: FrameType | None):
     print("Reloading model...")
-    MAIL_TEST.reload()
+    get_spam_detector().reload()
     print("Done reloading model")
 
 
 signal.signal(signal.SIGHUP, handler=handle_sighup)
 
 
-def handle_mail(connection: socket.socket):
-    mail_body: str = ''
-    while True:
-        data = connection.recv(1024)
-        if not data:
-            break
-        mail_body += data.decode('utf-8')
-    prediction = MAIL_TEST.predict_mail(read_mail_from_str(mail_body))
+def handle_mail(mail_body: str, mail_detector: SpamDetector) -> tuple[bool, str, bytes]:
+    prediction = mail_detector.predict_mail(read_mail_from_str(mail_body))
 
     result = "SPAM" if prediction else "HAM"
-
-    print("Finished", result)
 
     add_header = f'RL3-AI-Spam-Filter: {result}\r\n'
     new_mail_body = (
@@ -69,8 +79,26 @@ def handle_mail(connection: socket.socket):
         else mail_body
     )
 
+    return (prediction, result, (add_header + new_mail_body).encode('utf-8'))
+
+
+def handle_connection(connection: socket.socket):
+    mail_body: str = ''
+    while True:
+        data = connection.recv(1024)
+        if not data:
+            break
+        mail_body += data.decode('utf-8')
+
+    _prediction, result, new_mail_body = handle_mail(
+        mail_body=mail_body,
+        mail_detector=get_spam_detector()
+    )
+
+    print("Finished", result)
+
     # Send the modified mail back to Postfix
-    connection.sendall((add_header + new_mail_body).encode('utf-8'))
+    connection.sendall(new_mail_body)
     connection.close()
 
 
@@ -85,7 +113,7 @@ def start_filter():
     while True:
         connection, _address = server_socket.accept()
         client_thread = threading.Thread(
-            target=handle_mail, args=(connection,)
+            target=handle_connection, args=(connection,)
         )
         client_thread.start()
         # handle_mail(connection)
@@ -100,6 +128,7 @@ if __name__ == '__main__':
         exit(1)
 
     try:
+        get_spam_detector()
         start_filter()
     finally:
         if address_family == socket.AF_UNIX and isinstance(address, str):
