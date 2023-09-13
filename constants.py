@@ -1,27 +1,9 @@
-import re
-import socket
 from typing import Tuple, Type, Union
 
 from sklearn.feature_extraction.text import CountVectorizer  # type: ignore
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB  # type: ignore
 from sklearn.svm import SVC  # type: ignore
-
-# TODO: Should be configurable
-MAIL_DIR = "mails"
-RE_SPAM_PATH: list[tuple[str, re.RegexFlag] | str] = [
-    (r'\bspam\b', re.IGNORECASE),
-]
-RE_TRASH_PATH: list[tuple[str, re.RegexFlag] | str] = [
-    (r'\btrash\b', re.IGNORECASE),
-    (r'\bdeleted\b', re.IGNORECASE),
-]
-RE_SPAM_SUBJECT_PREFIX: list[tuple[str, re.RegexFlag] | str] = [
-    (r'\*+\s*SPAM\s*\*+\s*', re.IGNORECASE),
-    (r'\*+\s*AI\-SPAM\s*\*+\s*', re.IGNORECASE),
-]
-SUBJECT_PREFIX: str | None = "*** AI-SPAM ***"
-
 
 MODEL_FILE_PREFIX = "model"
 MODEL_FILE_EXT = ".pkl"
@@ -46,13 +28,4 @@ TEXT_MODEL_TYPE: Type[TextModelType] = MultinomialNB
 MAX_SIZE = 50_000
 TRAIN_CHUNK_SIZE = 1_000
 
-SOCKET_TYPE = 'INET'
-
-SOCKET_INET: tuple[int, str | tuple[str, int]] = (
-    socket.AF_INET, ('localhost', 10028)
-)
-SOCKET_UNIX: tuple[int, str | tuple[str, int]] = (
-    socket.AF_UNIX, './spam.sock'
-)
-SOCKET_DATA: tuple[int, str | tuple[str, int]] = SOCKET_UNIX
 MailContent = Tuple[str, ...]
