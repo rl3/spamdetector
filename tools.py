@@ -9,7 +9,8 @@ import chardet
 from html2text import html2text
 
 from config import RE_SPAM_SUBJECT_PREFIX
-from constants import MAX_SIZE, MailContent
+from constants import LOG_ERROR, MAX_SIZE, MailContent
+from mail_logging import log
 
 
 def fix_re_tuples(res: list[tuple[str, re.RegexFlag] | str]):
@@ -50,7 +51,7 @@ def read_mail_from_file(file_name: str) -> MailContent | None:
         with open(file_name, 'rb') as fh:
             message = convert_message(parser.parse(fh))
 
-        return _read_mail(message)
+        return read_mail(message)
     return None
 
 
@@ -58,10 +59,10 @@ def read_mail_from_str(mail_body: str) -> MailContent:
     parser = BytesParser(policy=policy.default)
     message = convert_message(parser.parsebytes(mail_body.encode('utf-8')))
 
-    return _read_mail(message)
+    return read_mail(message)
 
 
-def _read_mail(message: EmailMessage) -> MailContent:
+def read_mail(message: EmailMessage) -> MailContent:
 
     email_from = str(message.get_unixfrom() or message['From'] or '')
     if match := re.search(r'[\w\.-]+@[\w\.-]+(?:\.[\w]+)+', email_from):
@@ -87,8 +88,8 @@ def _read_mail(message: EmailMessage) -> MailContent:
             email_body = None if email_body is None else str(
                 email_body)
         except:  # pylint: disable=bare-except
-            print(message.get_content_type())
-            print(message.get_charsets())
+            log(LOG_ERROR, message.get_content_type())
+            log(LOG_ERROR, message.get_charsets())
             return None
 
         if email_body is not None and message.get_content_type() == 'text/html':

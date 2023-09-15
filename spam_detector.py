@@ -11,10 +11,11 @@ from nltk import download  # type:ignore
 from nltk.corpus import stopwords  # type:ignore
 
 from config import STOP_WORD_LANGUANGES
-from constants import (MODEL_FILE_EXT, MODEL_FILE_PREFIX, N_GRAMS,
-                       TEXT_MODEL_TYPE, TEXT_VECTORIZER_TYPE,
+from constants import (LOG_ERROR, LOG_INFO, LOG_WARN, MODEL_FILE_EXT, MODEL_FILE_PREFIX,
+                       N_GRAMS, TEXT_MODEL_TYPE, TEXT_VECTORIZER_TYPE,
                        VECTORIZER_FILE_EXT, VOCABULARY_FILE_PREFIX,
                        MailContent, TextModelType, TextVectorizerType)
+from mail_logging import log
 
 STRIP_ACCENTS = sklearn.feature_extraction.text.strip_accents_unicode
 
@@ -107,14 +108,16 @@ class SpamDetector:
         try:
             if os.path.isfile(file_name) and os.access(file_name, os.R_OK):
                 with open(file_name, 'rb') as file_handle:
-                    print(f"Loding model from file '{file_name}'")
+                    log(LOG_INFO, f"Loding model from file '{file_name}'")
                     model = pickle.load(file_handle)
                     if isinstance(model, TEXT_MODEL_TYPE):
                         return model
-                    print(
-                        f"Object in file '{file_name}' has wrong type. Expected '{TEXT_MODEL_TYPE.__name__}' got '{type(model).__name__}'")
+                    log(
+                        LOG_ERROR,
+                        f"Object in file '{file_name}' has wrong type. Expected '{TEXT_MODEL_TYPE.__name__}' got '{type(model).__name__}'"
+                    )
         except:  # pylint: disable=bare-except
-            print(f"Loding model from file '{file_name}' failed")
+            log(LOG_WARN, f"Loding model from file '{file_name}' failed")
         return None
 
     def _load_vocabulary(self) -> dict[str, int]:
@@ -122,12 +125,13 @@ class SpamDetector:
         try:
             if os.path.isfile(file_name) and os.access(file_name, os.R_OK):
                 with open(file_name, 'rb') as file_handle:
-                    print(f"Loading vocabulary from file '{file_name}'")
+                    log(LOG_INFO,
+                        f"Loading vocabulary from file '{file_name}'")
                     vocabulary = pickle.load(file_handle)
                     return vocabulary
 
         except:  # pylint: disable=bare-except
-            print(f"Loading vocabulary from file '{file_name}' failed")
+            log(LOG_WARN, f"Loading vocabulary from file '{file_name}' failed")
         return {}
 
     def save_vocabulary_model(self):

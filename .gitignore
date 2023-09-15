@@ -8,3 +8,5 @@ enron*/*
 *.gz
 *.tgz
 *.eml
+tmp/*
+*.log

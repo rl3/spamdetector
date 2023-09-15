@@ -1,4 +1,4 @@
-from typing import Tuple, Type, Union
+from typing import Literal, Tuple, Type, Union
 
 from sklearn.feature_extraction.text import CountVectorizer  # type: ignore
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -29,3 +29,17 @@ MAX_SIZE = 50_000
 TRAIN_CHUNK_SIZE = 1_000
 
 MailContent = Tuple[str, ...]
+
+LOG_FILE_SYSLOG = 'syslog'
+LOG_FILE_CONSOLE = 'console'
+
+LogPriorityType = Union[Literal[0], Literal[1], Literal[2], Literal[3]]
+
+LOG_DEBUG: LogPriorityType = 0
+LOG_INFO: LogPriorityType = 1
+LOG_WARN: LogPriorityType = 2
+LOG_ERROR: LogPriorityType = 3
+
+SERVER_PORT_DEFAULT: int = 10025
+
+SMTP_ERROR_CODE_554 = 554

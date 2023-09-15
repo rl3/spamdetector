@@ -6,7 +6,8 @@ from random import shuffle
 from typing import Callable
 
 from config import MAIL_DIRS, RE_SPAM_PATH, RE_TRASH_PATH
-from constants import TRAIN_CHUNK_SIZE, MailContent
+from constants import LOG_DEBUG, LOG_INFO, TRAIN_CHUNK_SIZE, MailContent
+from mail_logging import log
 from spam_detector import SpamDetector
 from tools import fix_re_tuples, read_mail_from_file, valid_file_name
 
@@ -51,14 +52,14 @@ def add_files(path: str):
         if valid_file_name(file_path):
             label_files.append((label, file_path))
         else:
-            print(f"Skipping {label} file", file_path)
+            log(LOG_DEBUG, f"Skipping {label} file {file_path}")
 
 
 def train(path: str, spam_detector: SpamDetector):
-    print(f"Loading mails from '{path}'")
+    log(LOG_INFO, f"Loading mails from '{path}'")
     add_files(path)
 
-    print(f"Training {len(label_files)} mails...")
+    log(LOG_INFO, f"Training {len(label_files)} mails...")
 
     shuffle(label_files)
 
@@ -69,7 +70,7 @@ def train(path: str, spam_detector: SpamDetector):
         mail_contents: list[MailContent] = []
         labels: list[str] = []
 
-        print(f"Reading files (round {round_no + 1})")
+        log(LOG_DEBUG, f"Reading files (round {round_no + 1})")
         for label, file_name in label_files[start:end]:
             mail_content = read_mail_from_file(file_name)
             if mail_content is not None:
