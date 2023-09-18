@@ -6,8 +6,9 @@ from random import shuffle
 from typing import Callable
 
 from config import MAIL_DIRS, RE_SPAM_PATH, RE_TRASH_PATH
-from constants import LOG_DEBUG, LOG_INFO, TRAIN_CHUNK_SIZE, MailContent
-from mail_logging import log
+from constants import TRAIN_CHUNK_SIZE, MailContent
+from mail_logging import LOG_DEBUG, LOG_INFO
+from mail_logging.logging import log
 from spam_detector import SpamDetector
 from tools import fix_re_tuples, read_mail_from_file, valid_file_name
 

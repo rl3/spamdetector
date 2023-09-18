@@ -1,12 +1,20 @@
+#!.venv/bin/python3
+
+import os
 import smtplib
 import sys
 
-from config import RECEIVING_SOCKET_DATA
+from config import LISTENING_SOCKET_DATA
+from constants import SERVER_PORT_DEFAULT
+from smtp_tools import UnixSocketSMTP
 
 if __name__ == '__main__':
+
     assert (len(sys.argv) > 2)
     mail_from = sys.argv[1]
     rcpt_tos = sys.argv[2:]
+
+    print(f"Trying to send mail from {mail_from} to {rcpt_tos}")
 
     body = b''
     while True:
@@ -15,12 +23,22 @@ if __name__ == '__main__':
             break
         body += data
 
-    assert (isinstance(RECEIVING_SOCKET_DATA[1], tuple))
-
     refused = {}
     try:
-        s = smtplib.SMTP()
-        s.connect(RECEIVING_SOCKET_DATA[1][0], RECEIVING_SOCKET_DATA[1][1])
+        s: smtplib.SMTP
+        if LISTENING_SOCKET_DATA.find('/') >= 0:
+            print(f"Sending mail to socket {LISTENING_SOCKET_DATA}")
+            s = UnixSocketSMTP(os.path.abspath(LISTENING_SOCKET_DATA))
+        else:
+            s = smtplib.SMTP()
+
+            socket_data = LISTENING_SOCKET_DATA.split(sep=':', maxsplit=1)
+            hostname: str = socket_data[0]
+            port: int = int(socket_data[1]) if len(
+                socket_data) > 1 else SERVER_PORT_DEFAULT
+            print(f"Sending mail to {hostname} port {port}")
+            s.connect(hostname, port)
+
         try:
             refused = s.sendmail(mail_from, rcpt_tos, body)  # pytype: disable=wrong-arg-types  # noqa: E501
         finally:

@@ -1,102 +1,31 @@
-import asyncio
 import itertools
 import os
 import re
-import signal
 import smtplib
 import socket
-import threading
 from email import policy
-from email.message import EmailMessage
 from email.parser import BytesParser
 from functools import reduce
-from types import FrameType
 from typing import AnyStr
 
-from aiosmtpd.controller import Controller, UnixSocketController
 from aiosmtpd.handlers import CRLF, EMPTYBYTES, NLCRE
 from aiosmtpd.smtp import SMTP, Envelope, Session
 
-from config import (RE_RECIPIENTS_FILTER, RECEIVING_SOCKET_DATA,
-                    SENDING_SOCKET_DATA, SUBJECT_PREFIX)
-from constants import LOG_INFO, SERVER_PORT_DEFAULT, SMTP_ERROR_CODE_554
-from mail_logging import log
-from spam_detector import SpamDetector
-from tools import convert_message, read_mail
-
-# pylint: disable=pointless-string-statement
-'''
-class AISpamSMTPServer(SMTP):
-    async def handle_DATA(self):
-        pass
-
-    async def process_message(self, peer, mailfrom, rcpttos, data, **kwargs):
-        # Implement your mail filtering logic here
-        # Access the email content through the `data` parameter
-        # Return `None` to accept the email or an error message to reject it
-        return None  # Accept all emails
-
-
-class AISpamControllerMixin(BaseThreadedController):
-    def factory(self):
-        return AISpamSMTPServer(self.handler)
-
-
-class AISpamController(AISpamControllerMixin, Controller):
-    pass
-
-
-class AISpamUnixController(AISpamControllerMixin, UnixSocketController):
-    pass
-'''
-
-
-class AIFilterDaemon:
-    def __init__(self) -> None:
-        self._spam_detector: SpamDetector | None = None
-        self.lock = threading.RLock()
-        self._original_hup_handler = signal.getsignal(signal.SIGHUP)
-
-        def handle_sighup(_signum: int, _frame: FrameType | None):
-            if self._spam_detector is None:
-                log(LOG_INFO, "Not yet initialized. Do nothing.")
-                return
-
-            log(LOG_INFO, "Reloading model...")
-            self._spam_detector.reload()
-            log(LOG_INFO, "Done reloading model.")
-
-        signal.signal(signal.SIGHUP, handler=handle_sighup)
-
-    def __del__(self):
-        signal.signal(signal.SIGHUP, handler=self._original_hup_handler)
-
-    def _get_spam_detector(self):
-        with self.lock:
-            if self._spam_detector is not None:
-                return self._spam_detector
-
-            self._spam_detector = SpamDetector()
-            return self._spam_detector
-
-    def predict_mail(self, mail_body: EmailMessage) -> tuple[bool, str]:
-        prediction = self._get_spam_detector().predict_mail(
-            content=read_mail(message=mail_body)
-        )
-
-        result = "SPAM" if prediction else "HAM"
-
-        log(LOG_INFO, f"Parsing finished with classification {result}")
-
-        return (prediction, result)
-
-
-FILTER_DAEMON = AIFilterDaemon()
+from ai_filter_daemon import AIFilterDaemon
+from config import NEXT_PEER_SOCKET_DATA, RE_RECIPIENTS_FILTER, SUBJECT_PREFIX
+from constants import SMTP_ERROR_CODE_554
+from mail_logging import LOG_INFO
+from mail_logging.logging import log
+from tools import convert_message
 
 # Create a custom SMTP class by subclassing smtplib.SMTP
 
 
 class UnixSocketSMTP(smtplib.SMTP):
+    """
+    Subclass of smtplib.SMTP to bind on unix socket
+    """
+
     def _get_socket(self, host: str, port: int, timeout: float):
         s = socket.socket(socket.AF_UNIX)
         s.connect(host)
@@ -104,8 +33,9 @@ class UnixSocketSMTP(smtplib.SMTP):
 
 
 class AISpamFrowarding:
-    def __init__(self):
-        self._hostname = SENDING_SOCKET_DATA
+    def __init__(self, filter_daemon: AIFilterDaemon):
+        self.filter_daemon = filter_daemon
+        self._hostname = NEXT_PEER_SOCKET_DATA
         self._port = 0
 
     async def handle_DATA(self, server: SMTP, session: Session, envelope: Envelope):
@@ -133,7 +63,7 @@ class AISpamFrowarding:
                 True
             )
 
-        log(LOG_INFO, f'Parsing mail for {recipients}')
+        log(LOG_INFO, f'Parsing mail for {", ".join(recipients)}')
 
         skip_recipients: list[str] = []
         apply_recipients: list[str] = []
@@ -164,7 +94,8 @@ class AISpamFrowarding:
             # modified_message = EmailMessage(policy=policy.default)
             # modified_message.set_content(original_message)
 
-            prediction, label = FILTER_DAEMON.predict_mail(modified_message)
+            prediction, label = self.filter_daemon.predict_mail(
+                modified_message)
 
             if prediction and SUBJECT_PREFIX is not None:
                 # Modify the subject
@@ -175,7 +106,7 @@ class AISpamFrowarding:
                 )
 
             # Add custom headers
-            modified_message.add_header('RL3-AI-Spam-Filter', label)
+            modified_message.add_header('RL3-AI-Spam-Filter-Result', label)
 
             # Forward the modified message
             apply_refused = await self._handle_DATA(
@@ -220,7 +151,11 @@ class AISpamFrowarding:
                 ending = line
                 break
         if session.peer is not None:
-            peer = session.peer[0].encode("ascii")
+            peer = (
+                session.peer.encode("ascii") or b'unix-socket'
+                if isinstance(session.peer, str)
+                else session.peer[0].encode("ascii")
+            )
             lines.insert(_i, b"RL3-AI-Spam-Filter-Peer: " + peer + ending)
 
         data = EMPTYBYTES.join(lines)
@@ -240,8 +175,8 @@ class AISpamFrowarding:
         refused: dict[str, tuple[int, bytes]] = {}
         try:
             s: smtplib.SMTP
-            if SENDING_SOCKET_DATA.find('/') >= 0:
-                s = UnixSocketSMTP(os.path.abspath(SENDING_SOCKET_DATA))
+            if NEXT_PEER_SOCKET_DATA.find('/') >= 0:
+                s = UnixSocketSMTP(os.path.abspath(NEXT_PEER_SOCKET_DATA))
             else:
                 s = smtplib.SMTP()
 
@@ -267,35 +202,3 @@ class AISpamFrowarding:
                 refused[str(r)] = (errcode, errmsg)
 
         return refused
-
-
-if __name__ == "__main__":
-
-    def get_controller():
-        handler = AISpamFrowarding()
-        if RECEIVING_SOCKET_DATA[0] == socket.AF_UNIX:
-            assert (isinstance(RECEIVING_SOCKET_DATA[1], str))
-            return UnixSocketController(handler=handler, unix_socket=RECEIVING_SOCKET_DATA[1])
-            # return AISpamUnixController(AISpamFrowarding(), unix_socket=RECEIVING_SOCKET_DATA[1])
-        else:
-            hostname: str
-            port: int = SERVER_PORT_DEFAULT
-            if isinstance(RECEIVING_SOCKET_DATA[1], str):
-                hostname = RECEIVING_SOCKET_DATA[1]
-            else:
-                hostname, port = RECEIVING_SOCKET_DATA[1]
-
-            return Controller(handler=handler, hostname=hostname, port=port)
-            # return AISpamController(handler=Sink(), hostname=hostname, port=port)
-
-    async def start_server(loop: asyncio.AbstractEventLoop) -> None:  # pylint:disable=unused-argument,redefined-outer-name
-        controller = get_controller()
-        controller.start()
-
-    loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop=loop)
-    loop.create_task(start_server(loop=loop))
-    try:
-        loop.run_forever()
-    except KeyboardInterrupt:
-        print("User abort indicated")

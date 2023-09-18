@@ -2,6 +2,7 @@ ham/*
 mails/*
 spam/*
 __pycache__/*
+*.pyc
 *.pkl
 .venv/*
 enron*/*

@@ -10,12 +10,13 @@ import sklearn.feature_extraction.text  # type:ignore
 from nltk import download  # type:ignore
 from nltk.corpus import stopwords  # type:ignore
 
-from config import STOP_WORD_LANGUANGES
-from constants import (LOG_ERROR, LOG_INFO, LOG_WARN, MODEL_FILE_EXT, MODEL_FILE_PREFIX,
-                       N_GRAMS, TEXT_MODEL_TYPE, TEXT_VECTORIZER_TYPE,
+from config import DATA_DIR, STOP_WORD_LANGUANGES
+from constants import (MODEL_FILE_EXT, MODEL_FILE_PREFIX, N_GRAMS,
+                       TEXT_MODEL_TYPE, TEXT_VECTORIZER_TYPE,
                        VECTORIZER_FILE_EXT, VOCABULARY_FILE_PREFIX,
                        MailContent, TextModelType, TextVectorizerType)
-from mail_logging import log
+from mail_logging import LOG_ERROR, LOG_INFO, LOG_WARN
+from mail_logging.logging import log
 
 STRIP_ACCENTS = sklearn.feature_extraction.text.strip_accents_unicode
 
@@ -98,10 +99,16 @@ class SpamDetector:
         return (vocabulary, model)
 
     def _get_model_file_name(self) -> str:
-        return f"{MODEL_FILE_PREFIX}-{TEXT_MODEL_TYPE.__name__}-{TEXT_VECTORIZER_TYPE.__name__}-{N_GRAMS}{MODEL_FILE_EXT}"
+        return os.path.join(
+            os.path.abspath(DATA_DIR),
+            f"{MODEL_FILE_PREFIX}-{TEXT_MODEL_TYPE.__name__}-{TEXT_VECTORIZER_TYPE.__name__}-{N_GRAMS}{MODEL_FILE_EXT}"
+        )
 
     def _get_vocabulary_file_name(self) -> str:
-        return f"{VOCABULARY_FILE_PREFIX}-{TEXT_VECTORIZER_TYPE.__name__}-{N_GRAMS}{VECTORIZER_FILE_EXT}"
+        return os.path.join(
+            os.path.abspath(DATA_DIR),
+            f"{VOCABULARY_FILE_PREFIX}-{TEXT_VECTORIZER_TYPE.__name__}-{N_GRAMS}{VECTORIZER_FILE_EXT}"
+        )
 
     def _load_model(self) -> TextModelType | None:
         file_name = self._get_model_file_name()

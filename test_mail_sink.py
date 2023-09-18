@@ -1,3 +1,5 @@
+#!.venv/bin/python3
+
 import asyncio
 import os
 
@@ -5,7 +7,7 @@ from aiosmtpd.controller import Controller, UnixSocketController
 from aiosmtpd.handlers import Sink
 from aiosmtpd.smtp import SMTP, Envelope, Session
 
-from config import SENDING_SOCKET_DATA
+from config import NEXT_PEER_SOCKET_DATA
 from constants import SERVER_PORT_DEFAULT
 
 
@@ -23,15 +25,22 @@ if __name__ == "__main__":
 
     def _get_controller():
         handler = TestProxy()
-        if SENDING_SOCKET_DATA.find('/') >= 0:
-            return UnixSocketController(handler=handler, unix_socket=os.path.abspath(SENDING_SOCKET_DATA))
+        if NEXT_PEER_SOCKET_DATA.find('/') >= 0:
+            if os.path.isfile(NEXT_PEER_SOCKET_DATA):
+                print(
+                    f'Socket {NEXT_PEER_SOCKET_DATA} already exists. Exiting')
+                exit(3)
+            print(
+                f'Starting smtp server listening on socket {NEXT_PEER_SOCKET_DATA}')
+            return UnixSocketController(handler=handler, unix_socket=os.path.abspath(NEXT_PEER_SOCKET_DATA))
             # return AISpamUnixController(AISpamFrowarding(), unix_socket=RECEIVING_SOCKET_DATA[1])
         else:
-            socket_data = SENDING_SOCKET_DATA.split(sep=':', maxsplit=1)
+            socket_data = NEXT_PEER_SOCKET_DATA.split(sep=':', maxsplit=1)
             hostname: str = socket_data[0]
             port: int = int(socket_data[1]) if len(
                 socket_data) > 1 else SERVER_PORT_DEFAULT
 
+            print(f'Starting smtp server listening on {hostname}:{port}')
             return Controller(handler=handler, hostname=hostname, port=port)
 
     async def _start_server(loop: asyncio.AbstractEventLoop) -> None:  # pylint:disable=unused-argument,redefined-outer-name
@@ -45,3 +54,5 @@ if __name__ == "__main__":
         loop.run_forever()
     except KeyboardInterrupt:
         print("User abort indicated")
+        if NEXT_PEER_SOCKET_DATA.find('/') >= 0 and os.path.isfile(NEXT_PEER_SOCKET_DATA):
+            os.remove(NEXT_PEER_SOCKET_DATA)

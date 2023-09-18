@@ -1,7 +1,6 @@
 import re
-import socket
 
-from constants import LOG_INFO, LogPriorityType
+from mail_logging import LOG_INFO, LogPriorityType
 
 # TODO: Should be configurable
 
@@ -38,15 +37,13 @@ SUBJECT_PREFIX: str | None = "*** AI-SPAM ***"
 STOP_WORD_LANGUANGES: list[str] = ["german", "english"]
 
 # The socket to create for the daemon
-# Examples:
-#   socket.AF_UNIX, './spam.sock'
-#   socket.AF_INET, ('localhost', 10028)
-RECEIVING_SOCKET_DATA: tuple[int, str | tuple[str, int]] = (
-    # socket.AF_UNIX, './spam.sock'
-    socket.AF_INET, ('localhost', 10025)
-)
-SENDING_SOCKET_DATA: str = './sink.sock'
+LISTENING_SOCKET_DATA: str = 'localhost:10025'
+# LISTENING_SOCKET_DATA: str = './spam.sock'
+NEXT_PEER_SOCKET_DATA: str = './sink.sock'
 # SENDING_SOCKET_DATA: str = 'localhost:10026'
 
 LOG_FILE: str = './mail_filter.log'
+# LOG_FILE: str = LOG_FILE_CONSOLE
 LOG_LEVEL: LogPriorityType = LOG_INFO
+
+DATA_DIR: str = './'

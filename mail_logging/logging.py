@@ -3,9 +3,8 @@ import os
 import syslog
 from typing import Any
 
-from config import LOG_FILE, LOG_LEVEL
-from constants import (LOG_DEBUG, LOG_ERROR, LOG_FILE_CONSOLE, LOG_FILE_SYSLOG,
-                       LOG_INFO, LOG_WARN, LogPriorityType)
+from mail_logging import (LOG_DEBUG, LOG_ERROR, LOG_FILE_CONSOLE,
+                          LOG_FILE_SYSLOG, LOG_INFO, LOG_WARN, LogPriorityType)
 
 
 class _LogBase:
@@ -64,13 +63,7 @@ class _LogConsole(_LogBase):
             print(message)
 
 
-_logger: _LogBase = (
-    _LogSyslog()
-    if LOG_FILE == LOG_FILE_SYSLOG
-    else _LogConsole(LOG_LEVEL or LOG_INFO)
-    if LOG_FILE == LOG_FILE_CONSOLE
-    else _LogFile(LOG_FILE, LOG_LEVEL or LOG_INFO)
-)
+_logger: _LogBase = _LogConsole(LOG_INFO)
 
 
 def log(priority: LogPriorityType, *messages: Any):
@@ -80,4 +73,15 @@ def log(priority: LogPriorityType, *messages: Any):
             f"[{os.getpid()}] " +
             ' '.join(str(message) for message in messages)
         )
+    )
+
+
+def init_logger(log_file: str, log_level: LogPriorityType = LOG_INFO) -> None:
+    global _logger
+    _logger = (
+        _LogSyslog()
+        if log_file == LOG_FILE_SYSLOG
+        else _LogConsole(log_level)
+        if log_file == LOG_FILE_CONSOLE
+        else _LogFile(log_file, log_level)
     )
