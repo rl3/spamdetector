@@ -7,9 +7,9 @@ if [ -d "$venv_dir" ]; then
     exit
 fi
 
-python -m venv "$venv_dir"
+python3 -m venv "$venv_dir"
 
 source "$venv_dir/bin/activate"
 
-pip install -r "$venv_dir/requirements.txt"
+pip3 install -r "$venv_dir/requirements.txt"
 
