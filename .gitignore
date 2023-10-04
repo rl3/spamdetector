@@ -11,3 +11,4 @@ enron*/*
 *.eml
 tmp/*
 *.log
+config.py

@@ -42,6 +42,7 @@ NEXT_PEER_SOCKET_DATA: str = './sink.sock'
 
 LOG_FILE: str = './mail_filter.log'
 # LOG_FILE: str = LOG_FILE_CONSOLE
+# LOG_FILE: str = LOG_FILE_SYSLOG
 LOG_LEVEL: LogPriorityType = LOG_INFO
 
-DATA_DIR: str = './'
+DATA_DIR: str = './data'
