@@ -24,8 +24,8 @@ class _LogSyslog(_LogBase):
 
     def log(self, priority: LogPriorityType, message: str) -> None:
         syslog.syslog(
-            priority=self.level_mapper.get(priority, priority),
-            message=message
+            self.level_mapper.get(priority, priority),
+            message
         )
 
 
