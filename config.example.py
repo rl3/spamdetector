@@ -36,7 +36,7 @@ STOP_WORD_LANGUANGES: list[str] = ["german", "english"]
 
 # The socket to create for the daemon
 # LISTENING_SOCKET_DATA: str = 'localhost:10025'
-LISTENING_SOCKET_DATA: str = '/run/ai-spamdetector.sock'
+LISTENING_SOCKET_DATA: str = '/run/ai-spamdetector/ai-spamdetector.sock'
 NEXT_PEER_SOCKET_DATA: str = './sink.sock'
 # NEXT_PEER_SOCKET_DATA: str = 'localhost:10026'
 
