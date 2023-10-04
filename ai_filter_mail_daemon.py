@@ -21,12 +21,18 @@ if __name__ == "__main__":
     def get_controller():
         handler = AISpamFrowarding(FILTER_DAEMON)
         if LISTENING_SOCKET_DATA.find('/') >= 0:
-            if os.path.isfile(LISTENING_SOCKET_DATA):
+            if os.path.exists(LISTENING_SOCKET_DATA):
                 log(
                     LOG_ERROR,
                     f'Socket {LISTENING_SOCKET_DATA} already exists. Exiting'
                 )
                 exit(3)
+
+            os.makedirs(
+                name=os.path.dirname(LISTENING_SOCKET_DATA),
+                exist_ok=True
+            )
+
             log(
                 LOG_INFO,
                 f'Starting smtp server listening on socket {LISTENING_SOCKET_DATA}'
@@ -60,5 +66,5 @@ if __name__ == "__main__":
             LOG_INFO,
             "User abort indicated"
         )
-        if LISTENING_SOCKET_DATA.find('/') >= 0 and os.path.isfile(LISTENING_SOCKET_DATA):
+        if LISTENING_SOCKET_DATA.find('/') >= 0 and os.path.exists(LISTENING_SOCKET_DATA):
             os.remove(LISTENING_SOCKET_DATA)
