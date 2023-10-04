@@ -1,4 +1,4 @@
-#!.venv/bin/python3
+#!./start
 
 import os
 import smtplib

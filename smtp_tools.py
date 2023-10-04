@@ -134,7 +134,7 @@ class AISpamFrowarding:
         return "250 OK"
 
     async def _handle_DATA(
-        self, server: SMTP, session: Session, mail_from: str, rcpt_tos: list[str], content: bytes  # pylint: disable=unused-argument
+        self, server: SMTP, session: Session, mail_from: str, rcpt_tos: list[str], content: bytes,  # pylint: disable=unused-argument
     ):
         """
         Adapted from aiosmtpd.handler.Proxy to return correct result

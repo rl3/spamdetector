@@ -1,3 +1,7 @@
+"""
+Daemon handling SpamDetector instance and reload on SIGHUB
+"""
+
 import signal
 import threading
 from email.message import EmailMessage
@@ -10,9 +14,13 @@ from tools import read_mail
 
 
 class AIFilterDaemon:
+    """
+    Threadsafe class providing SpamDetector instance and reloading on SIGHUB
+    """
+
     def __init__(self) -> None:
         self._spam_detector: SpamDetector | None = None
-        self.lock = threading.RLock()
+        self._lock = threading.RLock()
         self._original_hup_handler = signal.getsignal(signal.SIGHUP)
 
         def handle_sighup(_signum: int, _frame: FrameType | None):
@@ -21,7 +29,8 @@ class AIFilterDaemon:
                 return
 
             log(LOG_INFO, "Reloading model...")
-            self._spam_detector.reload()
+            with self._lock:
+                self._spam_detector.reload()
             log(LOG_INFO, "Done reloading model.")
 
         signal.signal(signal.SIGHUP, handler=handle_sighup)
@@ -30,7 +39,7 @@ class AIFilterDaemon:
         signal.signal(signal.SIGHUP, handler=self._original_hup_handler)
 
     def _get_spam_detector(self):
-        with self.lock:
+        with self._lock:
             if self._spam_detector is not None:
                 return self._spam_detector
 

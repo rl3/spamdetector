@@ -2,8 +2,6 @@ import re
 
 from mail_logging import LOG_INFO, LogPriorityType
 
-# TODO: Should be configurable
-
 # Directory to scan if spam_learn.py is started without parameter
 MAIL_DIRS = ["mails"]
 
@@ -37,10 +35,10 @@ SUBJECT_PREFIX: str | None = "*** AI-SPAM ***"
 STOP_WORD_LANGUANGES: list[str] = ["german", "english"]
 
 # The socket to create for the daemon
-LISTENING_SOCKET_DATA: str = 'localhost:10025'
-# LISTENING_SOCKET_DATA: str = './spam.sock'
+# LISTENING_SOCKET_DATA: str = 'localhost:10025'
+LISTENING_SOCKET_DATA: str = './spam.sock'
 NEXT_PEER_SOCKET_DATA: str = './sink.sock'
-# SENDING_SOCKET_DATA: str = 'localhost:10026'
+# NEXT_PEER_SOCKET_DATA: str = 'localhost:10026'
 
 LOG_FILE: str = './mail_filter.log'
 # LOG_FILE: str = LOG_FILE_CONSOLE

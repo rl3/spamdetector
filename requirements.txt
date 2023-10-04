@@ -1,3 +1,6 @@
+aiosmtpd==1.4.4.post2
+atpublic==4.0
+attrs==23.1.0
 chardet==5.1.0
 click==8.1.6
 html2text==2020.1.16
