@@ -9,9 +9,10 @@ import chardet
 from html2text import html2text
 
 from config import RE_SPAM_SUBJECT_PREFIX
-from constants import MAX_SIZE, MailContent
+from constants import MAX_SIZE
 from mail_logging import LOG_ERROR
 from mail_logging.logging import log
+from mail_types import MailContent
 
 
 def fix_re_tuples(res: list[tuple[str, re.RegexFlag] | str]):

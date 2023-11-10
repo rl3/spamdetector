@@ -1,23 +1,27 @@
-
-
 import os
 import pickle
-import threading
 from itertools import chain
 from sqlite3 import OperationalError
-from typing import Callable, Iterable
+from typing import Callable, Generic, Iterable, TypeVar
 
 import sklearn.feature_extraction.text  # type:ignore
+from model_base import SpamDetectorModelBase
 from nltk import download  # type:ignore
 from nltk.corpus import stopwords  # type:ignore
+from sklearn.feature_extraction.text import CountVectorizer  # type: ignore
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB  # type: ignore
+from sklearn.svm import SVC  # type: ignore
 
 from config import DATA_DIR, STOP_WORD_LANGUANGES
 from constants import (MODEL_FILE_EXT, MODEL_FILE_PREFIX, N_GRAMS,
-                       TEXT_MODEL_TYPE, TEXT_VECTORIZER_TYPE,
-                       VECTORIZER_FILE_EXT, VOCABULARY_FILE_PREFIX,
-                       MailContent, TextModelType, TextVectorizerType)
+                       VECTORIZER_FILE_EXT, VOCABULARY_FILE_PREFIX)
 from mail_logging import LOG_ERROR, LOG_INFO, LOG_WARN
 from mail_logging.logging import log
+from mail_types import MailContent
+
+VectorizerType = TypeVar('VectorizerType', CountVectorizer, TfidfVectorizer)
+ModelType = TypeVar('ModelType', SVC, MultinomialNB)
 
 STRIP_ACCENTS = sklearn.feature_extraction.text.strip_accents_unicode
 
@@ -44,17 +48,20 @@ def ___closure1() -> Callable[[], list[str]]:
 get_stop_words = ___closure1()
 
 
-class SpamDetector:
-    def __init__(self, train: bool = False) -> None:
-        self.train: bool = train
-        self._lock = threading.RLock()
-        self.reload()
+class SpamDetectorModelBayesBase(SpamDetectorModelBase, Generic[VectorizerType, ModelType]):
+    def __init__(self, vectorizer_class: type[VectorizerType], model_class: type[ModelType], for_training: bool = False) -> None:
+        super().__init__()
+        self.vectorizer_class: type[VectorizerType] = vectorizer_class
+        self.model_class: type[ModelType] = model_class
+        self.vocabulary: dict[str, int]
+        self.vectorizer: VectorizerType
+        self.model: ModelType
 
-    def reload(self):
-        with self._lock:
+    def load_model(self):
+        with self.lock:
             self.vocabulary, self.model = self._get_vocabulary_model(
-                self.train)
-            self.vectorizer = TEXT_VECTORIZER_TYPE(
+                self.for_training)
+            self.vectorizer = self.vectorizer_class(
                 ngram_range=N_GRAMS,
                 strip_accents=STRIP_ACCENTS,
                 decode_error='ignore',
@@ -62,11 +69,11 @@ class SpamDetector:
                 stop_words=get_stop_words(),
             )
 
-    def _get_model_vectorizer(self) -> tuple[TextModelType, TextVectorizerType]:
-        with self._lock:
+    def _get_model_vectorizer(self) -> tuple[ModelType, VectorizerType]:
+        with self.lock:
             return (self.model, self.vectorizer)
 
-    def _get_vocabulary_model(self, train: bool = False) -> tuple[dict[str, int], TextModelType]:
+    def _get_vocabulary_model(self, train: bool = False) -> tuple[dict[str, int], ModelType]:
         """
         Load the vocabulary and model from file
 
@@ -86,13 +93,13 @@ class SpamDetector:
         if len(vocabulary) == 0:
             if train:
                 # type: ignore
-                return (vocabulary, TEXT_MODEL_TYPE())
+                return (vocabulary, self.model_class())
             raise OperationalError("Could not load vectorizer")
 
         model = self._load_model()
         if model is None:
             if train:
-                return (vocabulary, TEXT_MODEL_TYPE())
+                return (vocabulary, self.model_class())
             raise OperationalError("Could not load model")
 
         return (vocabulary, model)
@@ -100,27 +107,27 @@ class SpamDetector:
     def _get_model_file_name(self) -> str:
         return os.path.join(
             os.path.abspath(DATA_DIR),
-            f"{MODEL_FILE_PREFIX}-{TEXT_MODEL_TYPE.__name__}-{TEXT_VECTORIZER_TYPE.__name__}-{N_GRAMS}{MODEL_FILE_EXT}"
+            f"{MODEL_FILE_PREFIX}-{self.model_class.__name__}-{self.vectorizer_class.__name__}-{N_GRAMS}{MODEL_FILE_EXT}"
         )
 
     def _get_vocabulary_file_name(self) -> str:
         return os.path.join(
             os.path.abspath(DATA_DIR),
-            f"{VOCABULARY_FILE_PREFIX}-{TEXT_VECTORIZER_TYPE.__name__}-{N_GRAMS}{VECTORIZER_FILE_EXT}"
+            f"{VOCABULARY_FILE_PREFIX}-{self.vectorizer_class.__name__}-{N_GRAMS}{VECTORIZER_FILE_EXT}"
         )
 
-    def _load_model(self) -> TextModelType | None:
+    def _load_model(self) -> ModelType | None:
         file_name = self._get_model_file_name()
         try:
             if os.path.isfile(file_name) and os.access(file_name, os.R_OK):
                 with open(file_name, 'rb') as file_handle:
                     log(LOG_INFO, f"Loding model from file '{file_name}'")
                     model = pickle.load(file_handle)
-                    if isinstance(model, TEXT_MODEL_TYPE):
+                    if isinstance(model, self.model_class):
                         return model
                     log(
                         LOG_ERROR,
-                        f"Object in file '{file_name}' has wrong type. Expected '{TEXT_MODEL_TYPE.__name__}' got '{type(model).__name__}'"
+                        f"Object in file '{file_name}' has wrong type. Expected '{self.model_class.__name__}' got '{type(model).__name__}'"
                     )
         except:  # pylint: disable=bare-except
             log(LOG_WARN, f"Loding model from file '{file_name}' failed")
@@ -140,7 +147,7 @@ class SpamDetector:
             log(LOG_WARN, f"Loading vocabulary from file '{file_name}' failed")
         return {}
 
-    def save_vocabulary_model(self):
+    def save_model(self):
         """Save vocabulary and model to a file
 
         Args:
@@ -149,14 +156,14 @@ class SpamDetector:
             model (ModelType): model to save
         """
 
-        with self._lock:
+        with self.lock:
             with open(self._get_vocabulary_file_name(), 'wb') as file_handle:
                 pickle.dump(self.vocabulary, file_handle)
             with open(self._get_model_file_name(), 'wb') as file_handle:
                 pickle.dump(self.model, file_handle)
 
     def get_features(  # type:ignore
-            self, contents: list[MailContent], vectorizer: TextVectorizerType
+            self, contents: list[MailContent], vectorizer: VectorizerType
     ):
         if len(contents) == 0:
             return None
@@ -181,7 +188,7 @@ class SpamDetector:
 
         analyze = self.vectorizer.build_analyzer()  # type:ignore
 
-        with self._lock:
+        with self.lock:
             for doc in documents:
                 for feature in analyze(doc):  # type: ignore
                     feature = str(feature).lower()  # type: ignore
@@ -200,8 +207,8 @@ class SpamDetector:
         predictions = model.predict(features_predict)  # type:ignore
         return bool(predictions[0] == 'spam')
 
-    def learn_mail(self, contents: list[MailContent], labels: list[str]):
-        with self._lock:
+    def learn_mails(self, contents: list[MailContent], labels: list[str]):
+        with self.lock:
             self.extend_vocabulary(
                 documents=chain.from_iterable(contents),
             )

@@ -48,11 +48,10 @@ DATA_DIR: str = '/usr/local/lib/spamdetector/data'
 LISTENING_SOCKET_DATA: str = '/run/ai-spamdetector/ai-spamdetector.sock'
 NEXT_PEER_SOCKET_DATA: str = './sink.sock'
 # NEXT_PEER_SOCKET_DATA: str = 'localhost:10026'
-DEFAULT_NEXT_PEER_PORT: int = 10026
 
 # LOG_FILE: str = './mail_filter.log'
 # LOG_FILE: str = LOG_FILE_CONSOLE
 LOG_FILE: str = LOG_FILE_SYSLOG
 LOG_LEVEL: LogPriorityType = LOG_INFO
 
-LAST_LEARN_SEMAPHORE = f"{DATA_DIR}/last_learn.sem"
+LAST_LEARN_SEMAPHORE: str = f"{DATA_DIR}/last_learn.sem"

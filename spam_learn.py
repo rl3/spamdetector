@@ -8,10 +8,12 @@ from typing import Callable, NamedTuple
 
 from config import (DEFAULT_SPAM_LEARN_DIRS, LAST_LEARN_SEMAPHORE,
                     RE_IGNORE_PATH, RE_SPAM_PATH)
-from constants import TRAIN_CHUNK_SIZE, MailContent
+from config_model import SpamDetectorModel
+from constants import TRAIN_CHUNK_SIZE
 from mail_logging import LOG_DEBUG, LOG_INFO
 from mail_logging.logging import log
-from spam_detector import SpamDetector
+from mail_types import MailContent
+from spam_detector_model_base import SpamDetectorModelBase
 from tools import fix_re_tuples, read_mail_from_file, valid_file_name
 
 label_files: list[tuple[str, str]] = []
@@ -73,7 +75,7 @@ def add_files(root_path: str, rel_path: str, options: OptionsType):
             log(LOG_DEBUG, f"Skipping {label} file {full_file_path}")
 
 
-def train(path: str, spam_detector: SpamDetector, options: OptionsType):
+def train(path: str, spam_model: SpamDetectorModelBase, options: OptionsType):
     log(LOG_INFO, f"Loading mails from '{path}'")
     add_files(root_path=path, rel_path='', options=options)
 
@@ -95,7 +97,7 @@ def train(path: str, spam_detector: SpamDetector, options: OptionsType):
                 mail_contents.append(mail_content)
                 labels.append(label)
 
-        spam_detector.learn_mail(contents=mail_contents, labels=labels)
+        spam_model.learn_mails(contents=mail_contents, labels=labels)
 
     round_no = 0
     while round_no * TRAIN_CHUNK_SIZE < len(label_files):
@@ -106,10 +108,12 @@ def train(path: str, spam_detector: SpamDetector, options: OptionsType):
 def train_all(*pathes: str, options: OptionsType | None):
     if options is None:
         options = OptionsType()
-    spam_detector: SpamDetector = SpamDetector(train=True)
+    spam_detector_model: SpamDetectorModelBase = SpamDetectorModel(
+        for_training=True
+    )
     for path in pathes:
-        train(path=path, spam_detector=spam_detector, options=options)
-    spam_detector.save_vocabulary_model()
+        train(path=path, spam_model=spam_detector_model, options=options)
+    spam_detector_model.save_model()
 
 
 if __name__ == '__main__':

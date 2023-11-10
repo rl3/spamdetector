@@ -1,12 +1,12 @@
 from sys import argv
 
-from spam_detector import SpamDetector
+from config_model import SpamDetectorModel
 from tools import read_mail_from_file
 
 
 def predict_mail(*_file_names: str):
 
-    spam_detector = SpamDetector(train=False)
+    spam_detector = SpamDetectorModel(for_training=False)
     predictions: list[bool] = []
 
     for file_name in _file_names:
