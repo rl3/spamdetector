@@ -3,15 +3,17 @@ import re
 from mail_logging import LOG_FILE_SYSLOG, LOG_INFO, LogPriorityType
 
 # Directory to scan if spam_learn.py is started without parameter
-MAIL_DIRS = ["mails"]
+DEFAULT_SPAM_LEARN_DIRS = ["mails"]
 
 # Regular expressions for pathes of mail files that should be treated as spam
+# Path is relative to scanned root path
 RE_SPAM_PATH: list[tuple[str, re.RegexFlag] | str] = [
     (r'\bspam\b', re.IGNORECASE),
 ]
 
 # Regular expressions for pathes of mail files that should be ignored
-RE_TRASH_PATH: list[tuple[str, re.RegexFlag] | str] = [
+# Path is relative to scanned root path
+RE_IGNORE_PATH: list[tuple[str, re.RegexFlag] | str] = [
     (r'\btrash\b', re.IGNORECASE),
     (r'\bdeleted\b', re.IGNORECASE),
 ]
@@ -25,11 +27,14 @@ RE_SPAM_SUBJECT_PREFIX: list[tuple[str, re.RegexFlag] | str] = [
 # Only run mail_filter if the last matching expression on the reciving address is True
 RE_RECIPIENTS_FILTER: list[tuple[str, bool]] = [
     (r'.+', False),  # do not run for any address
-    (r'(?:test|huhu)\@steppicrew\.de', True),  # run for those addresses
+    (r'(?:test|huhu)\@example\.com', True),  # run for those addresses
 ]
 
 # Prefix to prefix the subject of detected spam mails with
 SUBJECT_PREFIX: str | None = "*** AI-SPAM ***"
+
+# Prefix for added mail header fields
+MAIL_HEADER_FIELD_PREFIX = b"RL3-AI-Spam-Filter"
 
 # Languages to load stop words for
 STOP_WORD_LANGUANGES: list[str] = ["german", "english"]

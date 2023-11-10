@@ -95,7 +95,7 @@ class AIFilterMailDaemon:
             filter_daemon=self.filter_daemon,
             next_peer=self.next_peer
         )
-        if self.is_unix_socket >= 0:
+        if self.is_unix_socket:
             return self._get_unix_controller(handler)
 
         return self._get_ip_controller(handler)

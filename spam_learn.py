@@ -5,7 +5,7 @@ import sys
 from random import shuffle
 from typing import Callable
 
-from config import MAIL_DIRS, RE_IGNORE_PATH, RE_SPAM_PATH
+from config import DEFAULT_SPAM_LEARN_DIRS, RE_IGNORE_PATH, RE_SPAM_PATH
 from constants import TRAIN_CHUNK_SIZE, MailContent
 from mail_logging import LOG_DEBUG, LOG_INFO
 from mail_logging.logging import log
@@ -98,7 +98,7 @@ def train_all(*pathes: str):
 
 
 if __name__ == '__main__':
-    dirs: list[str] = MAIL_DIRS
+    dirs: list[str] = DEFAULT_SPAM_LEARN_DIRS
     if len(sys.argv) > 1:
         dirs = [dir for dir in sys.argv[1:] if os.path.isdir(dir)]
     train_all(*dirs)
