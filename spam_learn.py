@@ -13,7 +13,7 @@ from constants import TRAIN_CHUNK_SIZE
 from mail_logging import LOG_DEBUG, LOG_INFO
 from mail_logging.logging import log
 from mail_types import MailContent
-from spam_detector_model_base import SpamDetectorModelBase
+from models.base import SpamDetectorModelBase
 from tools import fix_re_tuples, read_mail_from_file, valid_file_name
 
 label_files: list[tuple[str, str]] = []

@@ -10,7 +10,7 @@ from types import FrameType
 from config_model import SpamDetectorModel
 from mail_logging import LOG_INFO
 from mail_logging.logging import log
-from models.model_base import SpamDetectorModelBase
+from models.base import SpamDetectorModelBase
 from tools import read_mail
 
 

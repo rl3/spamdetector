@@ -5,7 +5,6 @@ from sqlite3 import OperationalError
 from typing import Callable, Generic, Iterable, TypeVar
 
 import sklearn.feature_extraction.text  # type:ignore
-from model_base import SpamDetectorModelBase
 from nltk import download  # type:ignore
 from nltk.corpus import stopwords  # type:ignore
 from sklearn.feature_extraction.text import CountVectorizer  # type: ignore
@@ -19,6 +18,7 @@ from constants import (MODEL_FILE_EXT, MODEL_FILE_PREFIX, N_GRAMS,
 from mail_logging import LOG_ERROR, LOG_INFO, LOG_WARN
 from mail_logging.logging import log
 from mail_types import MailContent
+from models.base import SpamDetectorModelBase
 
 VectorizerType = TypeVar('VectorizerType', CountVectorizer, TfidfVectorizer)
 ModelType = TypeVar('ModelType', SVC, MultinomialNB)
