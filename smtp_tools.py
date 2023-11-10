@@ -6,6 +6,7 @@ import socket
 from email import policy
 from email.parser import BytesParser
 from functools import reduce
+from sqlite3 import OperationalError
 from typing import AnyStr
 
 from aiosmtpd.handlers import CRLF, EMPTYBYTES, NLCRE
@@ -15,7 +16,7 @@ from ai_filter_daemon import AIFilterDaemon
 from config import (MAIL_HEADER_FIELD_PREFIX, RE_RECIPIENTS_FILTER,
                     SUBJECT_PREFIX)
 from constants import NEXT_PEER_PORT_DEFAULT, SMTP_ERROR_CODE_554
-from mail_logging import LOG_DEBUG, LOG_INFO
+from mail_logging import LOG_DEBUG, LOG_ERROR, LOG_INFO
 from mail_logging.logging import log
 from tools import convert_message
 
@@ -44,12 +45,15 @@ class AISpamFrowarding:
         ]
 
         # Get the original message
-        original_message = envelope.content
-        if original_message is None:
+        _original_message = envelope.content
+        if _original_message is None:
             return "500 Empty message"
 
-        if isinstance(original_message, str):
-            original_message = original_message.encode(encoding="utf-8")
+        original_message = (
+            _original_message.encode(encoding="utf-8", errors='ignore')
+            if isinstance(_original_message, str)
+            else _original_message
+        )
 
         def recipient_applies(recipient: str) -> bool:
             return reduce(
@@ -77,19 +81,22 @@ class AISpamFrowarding:
         skip_refused: dict[str, tuple[int, bytes]] = {}
         apply_refused: dict[str, tuple[int, bytes]] = {}
 
+        async def pass_message_unchanged(recipients: list[str]):
+            return await self._handle_DATA(
+                server=server,
+                session=session,
+                mail_from=str(envelope.mail_from),
+                rcpt_tos=recipients,
+                content=original_message
+            )
+
         # Pass mail unchanged for skip_recipients
         if skip_recipients:
             log(
                 LOG_DEBUG,
                 f'Skip spam detection for recipients {", ".join(skip_recipients)}'
             )
-            skip_refused = await self._handle_DATA(
-                server=server,
-                session=session,
-                mail_from=str(envelope.mail_from),
-                rcpt_tos=skip_recipients,
-                content=original_message
-            )
+            skip_refused = await pass_message_unchanged(skip_recipients)
 
         # Run spam detection for apply_recipients
         if apply_recipients:
@@ -102,36 +109,41 @@ class AISpamFrowarding:
             # modified_message = EmailMessage(policy=policy.default)
             # modified_message.set_content(original_message)
 
-            prediction, label = self.filter_daemon.predict_mail(
-                parsed_message
-            )
-
-            if prediction and SUBJECT_PREFIX is not None:
-                # Modify the subject
-                old_subject = str(parsed_message.get('Subject') or '')
-                parsed_message.replace_header(
-                    'Subject',
-                    f"{SUBJECT_PREFIX} {old_subject}"
+            try:
+                prediction, label = self.filter_daemon.predict_mail(
+                    parsed_message
                 )
 
-            # Add custom headers
-            parsed_message.add_header(
-                f'{MAIL_HEADER_FIELD_PREFIX.decode()}-Result', label
-            )
+                if prediction and SUBJECT_PREFIX is not None:
+                    # Modify the subject
+                    old_subject = str(parsed_message.get('Subject') or '')
+                    parsed_message.replace_header(
+                        'Subject',
+                        f"{SUBJECT_PREFIX} {old_subject}"
+                    )
 
-            log(
-                LOG_DEBUG,
-                f'Spam detection result {label} for recipients {", ".join(apply_recipients)}'
-            )
+                # Add custom headers
+                parsed_message.add_header(
+                    f'{MAIL_HEADER_FIELD_PREFIX.decode()}-Result', label
+                )
 
-            # Forward the modified message
-            apply_refused = await self._handle_DATA(
-                server=server,
-                session=session,
-                mail_from=str(envelope.mail_from),
-                rcpt_tos=apply_recipients,
-                content=parsed_message.as_bytes()
-            )
+                log(
+                    LOG_DEBUG,
+                    f'Spam detection result {label} for recipients {", ".join(apply_recipients)}'
+                )
+
+                # Forward the modified message
+                apply_refused = await self._handle_DATA(
+                    server=server,
+                    session=session,
+                    mail_from=str(envelope.mail_from),
+                    rcpt_tos=apply_recipients,
+                    content=parsed_message.as_bytes()
+                )
+
+            except OperationalError as error:
+                log(LOG_ERROR, str(error))
+                apply_refused = await pass_message_unchanged(apply_recipients)
 
         refused = {**skip_refused, **apply_refused}
 
@@ -140,7 +152,7 @@ class AISpamFrowarding:
                 itertools.chain(
                     (f'{SMTP_ERROR_CODE_554}-Delivery to the following recipients failed:',),
                     (
-                        f'{SMTP_ERROR_CODE_554}-{recipient}: {error_code} {error_message.decode(encoding="utf-8")}'
+                        f'{SMTP_ERROR_CODE_554}-{recipient}: {error_code} {error_message.decode(encoding="utf-8", errors="ignore")}'
                         for recipient, (error_code, error_message) in refused.items()
                     ),
                     (f'{SMTP_ERROR_CODE_554} OK', '')

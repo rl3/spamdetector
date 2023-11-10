@@ -58,7 +58,8 @@ def read_mail_from_file(file_name: str) -> MailContent | None:
 
 def read_mail_from_str(mail_body: str) -> MailContent:
     parser = BytesParser(policy=policy.default)
-    message = convert_message(parser.parsebytes(mail_body.encode('utf-8')))
+    message = convert_message(parser.parsebytes(
+        mail_body.encode(encoding='utf-8', errors='ignore')))
 
     return read_mail(message)
 

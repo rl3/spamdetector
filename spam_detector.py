@@ -4,6 +4,7 @@ import os
 import pickle
 import threading
 from itertools import chain
+from sqlite3 import OperationalError
 from typing import Callable, Iterable
 
 import sklearn.feature_extraction.text  # type:ignore
@@ -86,15 +87,13 @@ class SpamDetector:
             if train:
                 # type: ignore
                 return (vocabulary, TEXT_MODEL_TYPE())
-            raise Exception(  # pylint: disable=broad-exception-raised
-                "Could not load vectorizer")
+            raise OperationalError("Could not load vectorizer")
 
         model = self._load_model()
         if model is None:
             if train:
                 return (vocabulary, TEXT_MODEL_TYPE())
-            raise Exception(  # pylint: disable=broad-exception-raised
-                "Could not load model")
+            raise OperationalError("Could not load model")
 
         return (vocabulary, model)
 

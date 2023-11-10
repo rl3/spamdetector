@@ -23,7 +23,7 @@ class TestProxy(Sink):
         content = envelope.content
         if content is not None:
             if isinstance(content, bytes):
-                content = content.decode(encoding="utf-8")
+                content = content.decode(encoding="utf-8", errors='ignore')
             print(content)
             if matches := re.findall(re_header_fields, content):
                 print("*" * 80)
