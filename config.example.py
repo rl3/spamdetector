@@ -39,6 +39,7 @@ STOP_WORD_LANGUANGES: list[str] = ["german", "english"]
 LISTENING_SOCKET_DATA: str = '/run/ai-spamdetector/ai-spamdetector.sock'
 NEXT_PEER_SOCKET_DATA: str = './sink.sock'
 # NEXT_PEER_SOCKET_DATA: str = 'localhost:10026'
+DEFAULT_NEXT_PEER_PORT: int = 10026
 
 # LOG_FILE: str = './mail_filter.log'
 # LOG_FILE: str = LOG_FILE_CONSOLE

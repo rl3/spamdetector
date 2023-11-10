@@ -12,7 +12,7 @@ from aiosmtpd.handlers import CRLF, EMPTYBYTES, NLCRE
 from aiosmtpd.smtp import SMTP, Envelope, Session
 
 from ai_filter_daemon import AIFilterDaemon
-from config import NEXT_PEER_SOCKET_DATA, RE_RECIPIENTS_FILTER, SUBJECT_PREFIX
+from config import DEFAULT_NEXT_PEER_PORT, RE_RECIPIENTS_FILTER, SUBJECT_PREFIX
 from constants import SMTP_ERROR_CODE_554
 from mail_logging import LOG_INFO
 from mail_logging.logging import log
@@ -33,10 +33,9 @@ class UnixSocketSMTP(smtplib.SMTP):
 
 
 class AISpamFrowarding:
-    def __init__(self, filter_daemon: AIFilterDaemon):
+    def __init__(self, filter_daemon: AIFilterDaemon, next_peer: str):
         self.filter_daemon = filter_daemon
-        self._hostname = NEXT_PEER_SOCKET_DATA
-        self._port = 0
+        self.next_peer = next_peer
 
     async def handle_DATA(self, server: SMTP, session: Session, envelope: Envelope):
         recipients: list[str] = [
@@ -134,7 +133,7 @@ class AISpamFrowarding:
         return "250 OK"
 
     async def _handle_DATA(
-        self, server: SMTP, session: Session, mail_from: str, rcpt_tos: list[str], content: bytes,  # pylint: disable=unused-argument
+        self, server: SMTP, session: Session, mail_from: str, rcpt_tos: list[str], content: bytes  # pylint: disable=unused-argument
     ):
         """
         Adapted from aiosmtpd.handler.Proxy to return correct result
@@ -174,22 +173,25 @@ class AISpamFrowarding:
         """
         refused: dict[str, tuple[int, bytes]] = {}
         try:
-            s: smtplib.SMTP
-            if NEXT_PEER_SOCKET_DATA.find('/') >= 0:
-                s = UnixSocketSMTP(os.path.abspath(NEXT_PEER_SOCKET_DATA))
+            smtp: smtplib.SMTP
+            if self.next_peer.find('/') >= 0:
+                smtp = UnixSocketSMTP(os.path.abspath(self.next_peer))
             else:
-                s = smtplib.SMTP()
+                smtp = smtplib.SMTP()
 
-                socket_data = self._hostname.split(sep=':', maxsplit=1)
+                socket_data = self.next_peer.split(sep=':', maxsplit=1)
                 hostname: str = socket_data[0]
-                port: int = int(socket_data[1]) if len(
-                    socket_data) > 1 else self._port
-                s.connect(hostname, port)
+                port: int = (
+                    int(socket_data[1])
+                    if len(socket_data) > 1
+                    else DEFAULT_NEXT_PEER_PORT
+                )
+                smtp.connect(hostname, port)
 
             try:
-                refused = s.sendmail(mail_from, rcpt_tos, data)  # pytype: disable=wrong-arg-types  # noqa: E501
+                refused = smtp.sendmail(mail_from, rcpt_tos, data)  # pytype: disable=wrong-arg-types  # noqa: E501
             finally:
-                s.quit()
+                smtp.quit()
         except smtplib.SMTPRecipientsRefused as e:  # pylint:disable=invalid-name
             refused = e.recipients
         except (OSError, smtplib.SMTPException) as e:  # pylint:disable=invalid-name
