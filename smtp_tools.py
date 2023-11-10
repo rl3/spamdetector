@@ -143,6 +143,7 @@ class AISpamFrowarding:
 
             except OperationalError as error:
                 log(LOG_ERROR, str(error))
+                log(LOG_INFO, "Passing mail untested.")
                 apply_refused = await pass_message_unchanged(apply_recipients)
 
         refused = {**skip_refused, **apply_refused}

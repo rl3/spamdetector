@@ -76,20 +76,21 @@ def read_mail(message: EmailMessage) -> MailContent:
             re_tuple[0], repl='', string=email_subject, flags=re_tuple[1])
 
     def _get_body(message: EmailMessage):
-        if message.is_multipart():
-            email_body_message = message.get_body(
-                preferencelist=("html", "plain")
-            )
-            if email_body_message is None:
-                return None
-
-            message = convert_message(email_body_message)
-
         try:
+            if message.is_multipart():
+                email_body_message = message.get_body(
+                    preferencelist=("html", "plain")
+                )
+                if email_body_message is None:
+                    return None
+
+                message = convert_message(email_body_message)
+
             email_body = message.get_content()
             email_body = None if email_body is None else str(
                 email_body)
-        except:  # pylint: disable=bare-except
+        except Exception as error:  # pylint: disable=bare-except
+            log(LOG_ERROR, str(error))
             log(LOG_ERROR, message.get_content_type())
             log(LOG_ERROR, message.get_charsets())
             return None
