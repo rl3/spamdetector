@@ -2,10 +2,12 @@
 import os
 import re
 import sys
+import time
 from random import shuffle
-from typing import Callable
+from typing import Callable, NamedTuple
 
-from config import DEFAULT_SPAM_LEARN_DIRS, RE_IGNORE_PATH, RE_SPAM_PATH
+from config import (DEFAULT_SPAM_LEARN_DIRS, LAST_LEARN_SEMAPHORE,
+                    RE_IGNORE_PATH, RE_SPAM_PATH)
 from constants import TRAIN_CHUNK_SIZE, MailContent
 from mail_logging import LOG_DEBUG, LOG_INFO
 from mail_logging.logging import log
@@ -13,6 +15,10 @@ from spam_detector import SpamDetector
 from tools import fix_re_tuples, read_mail_from_file, valid_file_name
 
 label_files: list[tuple[str, str]] = []
+
+
+class OptionsType(NamedTuple):
+    not_before: float | None = None
 
 
 def __scope1() -> tuple[Callable[[str], str], Callable[[str], bool]]:
@@ -38,7 +44,7 @@ def __scope1() -> tuple[Callable[[str], str], Callable[[str], bool]]:
 _get_label, _ignore_path = __scope1()
 
 
-def add_files(root_path: str, rel_path: str):
+def add_files(root_path: str, rel_path: str, options: OptionsType):
     ignore_file = _ignore_path(rel_path)
 
     label: str = _get_label(rel_path)
@@ -48,7 +54,14 @@ def add_files(root_path: str, rel_path: str):
         rel_file_path = os.path.normpath(os.path.join(rel_path, file))
         full_file_path = os.path.join(root_path, rel_file_path)
         if os.path.isdir(full_file_path):
-            add_files(root_path, rel_file_path)
+            if options.not_before is not None and os.stat(full_file_path).st_mtime < options.not_before:
+                continue
+
+            add_files(
+                root_path=root_path,
+                rel_path=rel_file_path,
+                options=options
+            )
             continue
 
         if ignore_file:
@@ -60,9 +73,9 @@ def add_files(root_path: str, rel_path: str):
             log(LOG_DEBUG, f"Skipping {label} file {full_file_path}")
 
 
-def train(path: str, spam_detector: SpamDetector):
+def train(path: str, spam_detector: SpamDetector, options: OptionsType):
     log(LOG_INFO, f"Loading mails from '{path}'")
-    add_files(path, '')
+    add_files(root_path=path, rel_path='', options=options)
 
     log(LOG_INFO, f"Training {len(label_files)} mails...")
 
@@ -90,10 +103,12 @@ def train(path: str, spam_detector: SpamDetector):
         round_no += 1
 
 
-def train_all(*pathes: str):
+def train_all(*pathes: str, options: OptionsType | None):
+    if options is None:
+        options = OptionsType()
     spam_detector: SpamDetector = SpamDetector(train=True)
     for path in pathes:
-        train(path, spam_detector)
+        train(path=path, spam_detector=spam_detector, options=options)
     spam_detector.save_vocabulary_model()
 
 
@@ -101,4 +116,20 @@ if __name__ == '__main__':
     dirs: list[str] = DEFAULT_SPAM_LEARN_DIRS
     if len(sys.argv) > 1:
         dirs = [dir for dir in sys.argv[1:] if os.path.isdir(dir)]
-    train_all(*dirs)
+
+    start_time = time.time()
+
+    not_before: float | None = None
+    if os.path.isfile(LAST_LEARN_SEMAPHORE):
+        stats = os.stat(LAST_LEARN_SEMAPHORE)
+        not_before = stats.st_mtime
+
+    train_all(*dirs, options=OptionsType(
+        not_before=not_before
+    ))
+
+    try:
+        with open(file=LAST_LEARN_SEMAPHORE, mode="a"):  # pylint: disable=unspecified-encoding
+            os.utime(path=LAST_LEARN_SEMAPHORE, times=(start_time, start_time))
+    except:  # pylint: disable=bare-except
+        pass

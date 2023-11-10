@@ -39,6 +39,10 @@ MAIL_HEADER_FIELD_PREFIX = b"RL3-AI-Spam-Filter"
 # Languages to load stop words for
 STOP_WORD_LANGUANGES: list[str] = ["german", "english"]
 
+
+# Directory to store vocabularies and models in
+DATA_DIR: str = '/usr/local/lib/spamdetector/data'
+
 # The socket to create for the daemon
 # LISTENING_SOCKET_DATA: str = 'localhost:10025'
 LISTENING_SOCKET_DATA: str = '/run/ai-spamdetector/ai-spamdetector.sock'
@@ -51,4 +55,4 @@ DEFAULT_NEXT_PEER_PORT: int = 10026
 LOG_FILE: str = LOG_FILE_SYSLOG
 LOG_LEVEL: LogPriorityType = LOG_INFO
 
-DATA_DIR: str = '/usr/local/lib/spamdetector/data'
+LAST_LEARN_SEMAPHORE = f"{DATA_DIR}/last_learn.sem"
