@@ -1,7 +1,7 @@
 from sklearn.feature_extraction.text import CountVectorizer  # type: ignore
 from sklearn.naive_bayes import MultinomialNB  # type: ignore
 
-from models.model_bayes_base import SpamDetectorModelBayesBase
+from models.bayes_base import SpamDetectorModelBayesBase
 
 
 class SpamDetectorModelCountMultinominal(SpamDetectorModelBayesBase[CountVectorizer, MultinomialNB]):
