@@ -74,6 +74,6 @@ And to `master.cf` add the following block to reinject parsed mails
     -o smtpd_sender_restrictions=
     -o smtpd_recipient_restrictions=permit_mynetworks,reject
 ```
-Please replace port numbers `10025` and `10026` with ports set in 'config.py`!
+Please replace port numbers `10025` and `10026` with ports set in `config.py`!
 
 The port mentioned in `content_filter` is the port spamdetector is listeining on and the port from `master.cf` is the port spamdetector forwards it's mails to.
