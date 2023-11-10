@@ -12,9 +12,10 @@ from aiosmtpd.handlers import CRLF, EMPTYBYTES, NLCRE
 from aiosmtpd.smtp import SMTP, Envelope, Session
 
 from ai_filter_daemon import AIFilterDaemon
-from config import DEFAULT_NEXT_PEER_PORT, RE_RECIPIENTS_FILTER, SUBJECT_PREFIX
-from constants import SMTP_ERROR_CODE_554
-from mail_logging import LOG_INFO
+from config import (MAIL_HEADER_FIELD_PREFIX, RE_RECIPIENTS_FILTER,
+                    SUBJECT_PREFIX)
+from constants import NEXT_PEER_PORT_DEFAULT, SMTP_ERROR_CODE_554
+from mail_logging import LOG_DEBUG, LOG_INFO
 from mail_logging.logging import log
 from tools import convert_message
 
@@ -64,6 +65,7 @@ class AISpamFrowarding:
 
         log(LOG_INFO, f'Parsing mail for {", ".join(recipients)}')
 
+        # Determine for wich recipients we should perform spam detection
         skip_recipients: list[str] = []
         apply_recipients: list[str] = []
         for recipient in recipients:
@@ -75,7 +77,12 @@ class AISpamFrowarding:
         skip_refused: dict[str, tuple[int, bytes]] = {}
         apply_refused: dict[str, tuple[int, bytes]] = {}
 
+        # Pass mail unchanged for skip_recipients
         if skip_recipients:
+            log(
+                LOG_DEBUG,
+                f'Skip spam detection for recipients {", ".join(skip_recipients)}'
+            )
             skip_refused = await self._handle_DATA(
                 server=server,
                 session=session,
@@ -84,28 +91,38 @@ class AISpamFrowarding:
                 content=original_message
             )
 
+        # Run spam detection for apply_recipients
         if apply_recipients:
+
             # Create a new message to modify
             parser = BytesParser(policy=policy.default)
-            modified_message = convert_message(
+            parsed_message = convert_message(
                 parser.parsebytes(original_message)
             )
             # modified_message = EmailMessage(policy=policy.default)
             # modified_message.set_content(original_message)
 
             prediction, label = self.filter_daemon.predict_mail(
-                modified_message)
+                parsed_message
+            )
 
             if prediction and SUBJECT_PREFIX is not None:
                 # Modify the subject
-                old_subject = str(modified_message.get('Subject') or '')
-                modified_message.replace_header(
+                old_subject = str(parsed_message.get('Subject') or '')
+                parsed_message.replace_header(
                     'Subject',
                     f"{SUBJECT_PREFIX} {old_subject}"
                 )
 
             # Add custom headers
-            modified_message.add_header('RL3-AI-Spam-Filter-Result', label)
+            parsed_message.add_header(
+                f'{MAIL_HEADER_FIELD_PREFIX.decode()}-Result', label
+            )
+
+            log(
+                LOG_DEBUG,
+                f'Spam detection result {label} for recipients {", ".join(apply_recipients)}'
+            )
 
             # Forward the modified message
             apply_refused = await self._handle_DATA(
@@ -113,7 +130,7 @@ class AISpamFrowarding:
                 session=session,
                 mail_from=str(envelope.mail_from),
                 rcpt_tos=apply_recipients,
-                content=modified_message.as_bytes()
+                content=parsed_message.as_bytes()
             )
 
         refused = {**skip_refused, **apply_refused}
@@ -155,7 +172,8 @@ class AISpamFrowarding:
                 if isinstance(session.peer, str)
                 else session.peer[0].encode("ascii")
             )
-            lines.insert(_i, b"RL3-AI-Spam-Filter-Peer: " + peer + ending)
+            lines.insert(_i, MAIL_HEADER_FIELD_PREFIX +
+                         b"-Peer: " + peer + ending)
 
         data = EMPTYBYTES.join(lines)
         refused = self._deliver(mail_from, rcpt_tos, data)
@@ -184,7 +202,7 @@ class AISpamFrowarding:
                 port: int = (
                     int(socket_data[1])
                     if len(socket_data) > 1
-                    else DEFAULT_NEXT_PEER_PORT
+                    else NEXT_PEER_PORT_DEFAULT
                 )
                 smtp.connect(hostname, port)
 

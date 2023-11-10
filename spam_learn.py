@@ -5,7 +5,7 @@ import sys
 from random import shuffle
 from typing import Callable
 
-from config import MAIL_DIRS, RE_SPAM_PATH, RE_TRASH_PATH
+from config import MAIL_DIRS, RE_IGNORE_PATH, RE_SPAM_PATH
 from constants import TRAIN_CHUNK_SIZE, MailContent
 from mail_logging import LOG_DEBUG, LOG_INFO
 from mail_logging.logging import log
@@ -24,41 +24,45 @@ def __scope1() -> tuple[Callable[[str], str], Callable[[str], bool]]:
                 return "spam"
         return "ham"
 
-    _re_trash_path = fix_re_tuples(RE_TRASH_PATH)
+    _re_ignore_path = fix_re_tuples(RE_IGNORE_PATH)
 
-    def __is_trash(path: str) -> bool:
-        for regexp, flags in _re_trash_path:
+    def __ignore_path(path: str) -> bool:
+        for regexp, flags in _re_ignore_path:
             if re.search(regexp, path, flags=flags):
                 return True
         return False
 
-    return __get_label, __is_trash
+    return __get_label, __ignore_path
 
 
-_get_label, _is_trash = __scope1()
+_get_label, _ignore_path = __scope1()
 
 
-def add_files(path: str):
-    if _is_trash(path):
-        return
+def add_files(root_path: str, rel_path: str):
+    ignore_file = _ignore_path(rel_path)
 
-    label: str = _get_label(path)
+    label: str = _get_label(rel_path)
+    print(rel_path, label, f'ignore: {ignore_file}')
 
-    for _file_path in os.listdir(path):
-        file_path = os.path.join(path, _file_path)
-        if os.path.isdir(file_path):
-            add_files(file_path)
+    for file in os.listdir(os.path.join(root_path, rel_path)):
+        rel_file_path = os.path.normpath(os.path.join(rel_path, file))
+        full_file_path = os.path.join(root_path, rel_file_path)
+        if os.path.isdir(full_file_path):
+            add_files(root_path, rel_file_path)
             continue
 
-        if valid_file_name(file_path):
-            label_files.append((label, file_path))
+        if ignore_file:
+            continue
+
+        if valid_file_name(rel_file_path):
+            label_files.append((label, full_file_path))
         else:
-            log(LOG_DEBUG, f"Skipping {label} file {file_path}")
+            log(LOG_DEBUG, f"Skipping {label} file {full_file_path}")
 
 
 def train(path: str, spam_detector: SpamDetector):
     log(LOG_INFO, f"Loading mails from '{path}'")
-    add_files(path)
+    add_files(path, '')
 
     log(LOG_INFO, f"Training {len(label_files)} mails...")
 

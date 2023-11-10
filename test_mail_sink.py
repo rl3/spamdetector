@@ -2,22 +2,34 @@
 
 import asyncio
 import os
+import re
 
 from aiosmtpd.controller import Controller, UnixSocketController
 from aiosmtpd.handlers import Sink
 from aiosmtpd.smtp import SMTP, Envelope, Session
 
-from config import NEXT_PEER_SOCKET_DATA
+from config import MAIL_HEADER_FIELD_PREFIX, NEXT_PEER_SOCKET_DATA
 from constants import SERVER_PORT_DEFAULT
 
 
 class TestProxy(Sink):
     async def handle_DATA(self, server: SMTP, session: Session, envelope: Envelope):  # pylint: disable=unused-argument
+        re_header_fields = (
+            r'(?<=\n)\s*(' +
+            re.escape(MAIL_HEADER_FIELD_PREFIX.decode()) +
+            r'[\-\w]+:.*\S)(?=\s*\n)'
+        )
         print(f"Receiving mail for {envelope.rcpt_tos}")  # type:ignore
         content = envelope.content
-        if isinstance(content, bytes):
-            content = content.decode(encoding="utf-8")
-        print(content)
+        if content is not None:
+            if isinstance(content, bytes):
+                content = content.decode(encoding="utf-8")
+            print(content)
+            if matches := re.findall(re_header_fields, content):
+                print("*" * 80)
+                for match in matches:
+                    print(match)
+            print("*" * 80)
         return "250 OK"
 
 

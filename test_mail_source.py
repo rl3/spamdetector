@@ -10,6 +10,10 @@ from smtp_tools import UnixSocketSMTP
 
 if __name__ == '__main__':
 
+    if len(sys.argv) <= 2:
+        print(f"Usage: {sys.argv[0]} [mail from] [rcpt to]... < mail_to_parse")
+        exit(1)
+
     assert (len(sys.argv) > 2)
     mail_from = sys.argv[1]
     rcpt_tos = sys.argv[2:]

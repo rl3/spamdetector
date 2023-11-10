@@ -12,3 +12,4 @@ enron*/*
 tmp/*
 *.log
 config.py
+*swp
