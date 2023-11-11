@@ -1,0 +1,8 @@
+[Unit]
+Description=AI based spam filter daemon
+
+[Service]
+ExecStart=/usr/local/lib/ai-spamdetector/start /usr/local/lib/ai-spamdetector/ai_filter_mail_daemon.py
+
+[Install]
+WantedBy=multi-user.target
