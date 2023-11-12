@@ -206,6 +206,10 @@ class AISpamFrowarding:
         try:
             smtp: smtplib.SMTP
             if self.next_peer.find('/') >= 0:
+                log(
+                    LOG_DEBUG,
+                    f"Trying to send mail to next hop via unix:{self.next_peer}"
+                )
                 smtp = UnixSocketSMTP(os.path.abspath(self.next_peer))
             else:
                 smtp = smtplib.SMTP()
@@ -217,15 +221,31 @@ class AISpamFrowarding:
                     if len(socket_data) > 1
                     else NEXT_PEER_PORT_DEFAULT
                 )
+                log(
+                    LOG_DEBUG,
+                    f"Trying to send mail to next hop via smtp:{hostname}:{port}"
+                )
                 smtp.connect(hostname, port)
 
             try:
                 refused = smtp.sendmail(mail_from, rcpt_tos, data)  # pytype: disable=wrong-arg-types  # noqa: E501
+                log(
+                    LOG_DEBUG,
+                    f"Refused error: {refused}"
+                )
             finally:
                 smtp.quit()
         except smtplib.SMTPRecipientsRefused as e:  # pylint:disable=invalid-name
             refused = e.recipients
+            log(
+                LOG_ERROR,
+                f"SMTPRecipientsRefused: {e}"
+            )
         except (OSError, smtplib.SMTPException) as e:  # pylint:disable=invalid-name
+            log(
+                LOG_ERROR,
+                f"SMTPException: {e}"
+            )
             # All recipients were refused.  If the exception had an associated
             # error code, use it.  Otherwise, fake it with a non-triggering
             # exception code.
