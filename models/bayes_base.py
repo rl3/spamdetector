@@ -15,7 +15,7 @@ from sklearn.svm import SVC  # type: ignore
 from config import DATA_DIR, STOP_WORD_LANGUANGES
 from constants import (MODEL_FILE_EXT, MODEL_FILE_PREFIX, N_GRAMS,
                        VECTORIZER_FILE_EXT, VOCABULARY_FILE_PREFIX)
-from mail_logging import LOG_ERROR, LOG_INFO, LOG_WARN
+from mail_logging import LOG_DEBUG, LOG_ERROR, LOG_INFO, LOG_WARN
 from mail_logging.logging import log
 from mail_types import MailContent
 from models.base import SpamDetectorModelBase
@@ -127,6 +127,8 @@ class SpamDetectorModelBayesBase(SpamDetectorModelBase, Generic[VectorizerType, 
                 with open(file_name, 'rb') as file_handle:
                     log(LOG_INFO, f"Loding model from file '{file_name}'")
                     model = pickle.load(file_handle)
+                    log(LOG_DEBUG,
+                        f"Loding model from file '{file_name}' done")
                     if isinstance(model, self.model_class):
                         return model
                     log(
@@ -145,6 +147,8 @@ class SpamDetectorModelBayesBase(SpamDetectorModelBase, Generic[VectorizerType, 
                     log(LOG_INFO,
                         f"Loading vocabulary from file '{file_name}'")
                     vocabulary = pickle.load(file_handle)
+                    log(LOG_DEBUG,
+                        f"Loading vocabulary from file '{file_name}' done")
                     return vocabulary
 
         except:  # pylint: disable=bare-except
