@@ -44,6 +44,8 @@ class AISpamFrowarding:
             str(rcpt) for rcpt in envelope.rcpt_tos  # type:ignore
         ]
 
+        log(LOG_INFO, f'Parsing mail for {", ".join(recipients)}')
+
         # Get the original message
         _original_message = envelope.content
         if _original_message is None:
@@ -66,8 +68,6 @@ class AISpamFrowarding:
                 RE_RECIPIENTS_FILTER,
                 True
             )
-
-        log(LOG_INFO, f'Parsing mail for {", ".join(recipients)}')
 
         # Determine for wich recipients we should perform spam detection
         skip_recipients: list[str] = []
