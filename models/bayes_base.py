@@ -206,13 +206,18 @@ class SpamDetectorModelBayesBase(SpamDetectorModelBase, Generic[VectorizerType, 
 
     def predict_mail(self, content: MailContent) -> bool:
         model, vectorizer = self._get_model_vectorizer()
+        log(LOG_DEBUG, f"Getting features.")
         features_predict = self.get_features(  # type:ignore
             contents=[content],
             vectorizer=vectorizer
         )
 
+        log(LOG_DEBUG, f"Predicting...")
+
         # prediction_values = model.predict_proba(features_predict)
         predictions = model.predict(features_predict)  # type:ignore
+
+        log(LOG_DEBUG, f"Prediction finished: {predictions[0]}")
         return bool(predictions[0] == 'spam')
 
     def learn_mails(self, contents: list[MailContent], labels: list[str]):
