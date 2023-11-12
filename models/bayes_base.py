@@ -56,6 +56,7 @@ class SpamDetectorModelBayesBase(SpamDetectorModelBase, Generic[VectorizerType, 
         self.vocabulary: dict[str, int]
         self.vectorizer: VectorizerType
         self.model: ModelType
+        self.initialized: bool = False
 
     def load_model(self):
         with self.lock:
@@ -68,9 +69,12 @@ class SpamDetectorModelBayesBase(SpamDetectorModelBase, Generic[VectorizerType, 
                 vocabulary=self.vocabulary,
                 stop_words=get_stop_words(),
             )
+            self.initialized = True
 
     def _get_model_vectorizer(self) -> tuple[ModelType, VectorizerType]:
         with self.lock:
+            if not self.initialized:
+                self.load_model()
             return (self.model, self.vectorizer)
 
     def _get_vocabulary_model(self, train: bool = False) -> tuple[dict[str, int], ModelType]:
